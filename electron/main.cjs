@@ -16,8 +16,7 @@ function createWindow() {
       contextIsolation: true,
       webSecurity: true,
       sandbox: true
-    },
-    icon: path.join(__dirname, '../public/favicon.ico')
+    }
   });
 
   // Load the built app index.html

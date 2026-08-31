@@ -32,6 +32,9 @@ jobs:
 
       - name: Build Web & Desktop .EXE
         run: npm run build:electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package Web Zip Distributable
         shell: bash

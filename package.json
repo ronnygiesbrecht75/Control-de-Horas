@@ -1,5 +1,8 @@
 {
   "name": "control-de-horas",
+  "productName": "Control de Horas",
+  "description": "Sistema de Control de Horas y Liquidacion de Sueldos",
+  "author": "Ronny Giesbrecht",
   "private": true,
   "version": "1.0.4",
   "main": "electron/main.cjs",
@@ -7,7 +10,7 @@
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "build": "vite build",
-    "build:electron": "vite build && electron-builder --win",
+    "build:electron": "vite build && electron-builder --win --publish never",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js release",
     "lint": "tsc --noEmit"

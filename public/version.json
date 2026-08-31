@@ -1,5 +1,5 @@
 {
-  "version": "1.0.3",
-  "buildDate": "2026-08-31T11:15:00Z",
-  "description": "Versión 1.0.3: Actualización de versión y estabilidad."
+  "version": "1.0.4",
+  "buildDate": "2026-08-31T11:33:00Z",
+  "description": "Versión 1.0.4: Soporte de ejecutables nativos .exe para Windows y automatización de releases."
 }

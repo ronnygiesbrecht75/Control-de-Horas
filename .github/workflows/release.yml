@@ -14,8 +14,8 @@ permissions:
 
 jobs:
   release:
-    name: Build & Create Release
-    runs-on: ubuntu-latest
+    name: Build Windows Executables & Create Release
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,17 +30,19 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build Application
-        run: npm run build
+      - name: Build Web & Desktop .EXE
+        run: npm run build:electron
 
-      - name: Package Distributable
+      - name: Package Web Zip Distributable
+        shell: bash
         run: |
           cd dist
-          zip -r ../control-de-horas-app.zip .
+          tar -a -c -f ../control-de-horas-web.zip *
           cd ..
 
       - name: Determine Tag & Release Name
         id: release_info
+        shell: bash
         run: |
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
             TAG_NAME="${{ github.ref_name }}"
@@ -53,7 +55,7 @@ jobs:
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
 
-      - name: Create GitHub Release
+      - name: Create GitHub Release with .EXE
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_info.outputs.tag_name }}
@@ -62,6 +64,8 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            control-de-horas-app.zip
+            release/*.exe
+            control-de-horas-web.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

@@ -1,0 +1,67 @@
+name: Create Automatic GitHub Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Create Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Application
+        run: npm run build
+
+      - name: Package Distributable
+        run: |
+          cd dist
+          zip -r ../control-de-horas-app.zip .
+          cd ..
+
+      - name: Determine Tag & Release Name
+        id: release_info
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            TAG_NAME="${{ github.ref_name }}"
+            RELEASE_NAME="Release $TAG_NAME"
+          else
+            TIMESTAMP=$(date +'%Y.%m.%d-%H%M')
+            TAG_NAME="v$TIMESTAMP"
+            RELEASE_NAME="Release v$TIMESTAMP (Build #${{ github.run_number }})"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "release_name=$RELEASE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_info.outputs.tag_name }}
+          name: ${{ steps.release_info.outputs.release_name }}
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+          files: |
+            control-de-horas-app.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

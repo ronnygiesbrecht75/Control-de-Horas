@@ -1,0 +1,6 @@
+{
+  "name": "Control de Horas y Pago Mensual",
+  "description": "Aplicación para registrar dos entradas y salidas diarias de empleados, sumar horas automáticamente y calcular el pago a fin de mes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

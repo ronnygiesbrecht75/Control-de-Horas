@@ -140,9 +140,14 @@ export const Header: React.FC<HeaderProps> = ({
                 <Clock className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-slate-100 tracking-tight leading-none">
-                  Control de Horas
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-bold text-slate-100 tracking-tight leading-none">
+                    Control de Horas
+                  </h1>
+                  <span className="text-[10px] font-black bg-slate-800 text-orange-400 border border-slate-700 px-1.5 py-0.5 rounded-md leading-none">
+                    v{APP_VERSION}
+                  </span>
+                </div>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">
                   2 Entradas y 2 Salidas · Cálculo Mensual Automático
                 </p>

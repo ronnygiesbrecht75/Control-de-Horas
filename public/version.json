@@ -1,6 +1,6 @@
 {
-  "version": "1.3.0",
-  "buildDate": "2026-10-17T11:30:00Z",
-  "description": "Versión 1.3.0: Salidas intermedias con orden Salida y Llegada, con descuento automático de las horas totales del día."
+  "version": "1.4.0",
+  "buildDate": "2026-10-17T14:55:00Z",
+  "description": "Versión 1.4.0: Carga diaria por empleado individual con avance automático de día en turno habitual, generación de Excel y PDF en planilla detallada, 20 colores al registrar empleados y encabezado de liquidación optimizado."
 }
 

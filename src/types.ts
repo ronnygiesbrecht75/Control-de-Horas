@@ -50,6 +50,9 @@ export interface Employee {
   phone?: string;
   active: boolean;
   color?: string; // avatar color badge
+  startDate?: string; // Fecha de comienzo / ingreso al trabajo (YYYY-MM-DD)
+  endDate?: string;   // Fecha de salida / retiro de la empresa (YYYY-MM-DD)
+  exitReason?: string; // Motivo de salida opcional
 }
 
 export type SettlementPeriodType = 'quincenal_1' | 'quincenal_2' | 'mensual' | 'custom';
@@ -78,7 +81,7 @@ export interface MonthlySettlementAdjustment {
   paidAt?: string; // ISO timestamp
 }
 
-export type ActiveTab = 'daily' | 'monthly' | 'settlement' | 'employees';
+export type ActiveTab = 'daily' | 'monthly' | 'settlement' | 'employees' | 'ex-employees';
 
 export interface CurrencyConfig {
   symbol: string;

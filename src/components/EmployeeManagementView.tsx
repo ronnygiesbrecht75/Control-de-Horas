@@ -12,9 +12,18 @@ import {
   Phone, 
   Calendar,
   Layers,
-  Filter
+  Filter,
+  UserX,
+  CalendarDays,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
-import { formatCurrencyWithSymbol } from '../utils/timeUtils';
+import { 
+  formatCurrencyWithSymbol, 
+  formatDateDisplay, 
+  calculateTenure, 
+  getTodayDateStr 
+} from '../utils/timeUtils';
 
 interface EmployeeManagementViewProps {
   employees: Employee[];
@@ -22,17 +31,42 @@ interface EmployeeManagementViewProps {
   onAddEmployee: (emp: Omit<Employee, 'id'>) => void;
   onUpdateEmployee: (emp: Employee) => void;
   onDeleteEmployee: (id: string) => void;
+  onGoToExEmployees?: () => void;
 }
 
 const COLORS = [
-  'bg-orange-600',
-  'bg-amber-600',
   'bg-blue-600',
+  'bg-sky-500',
+  'bg-cyan-600',
+  'bg-teal-600',
   'bg-emerald-600',
-  'bg-purple-600',
-  'bg-indigo-600',
+  'bg-green-600',
+  'bg-lime-600',
+  'bg-yellow-500',
+  'bg-amber-500',
+  'bg-orange-500',
+  'bg-orange-700',
+  'bg-red-500',
+  'bg-red-600',
+  'bg-rose-500',
   'bg-rose-600',
-  'bg-cyan-600'
+  'bg-pink-500',
+  'bg-pink-600',
+  'bg-fuchsia-600',
+  'bg-purple-600',
+  'bg-violet-600',
+  'bg-indigo-600',
+  'bg-blue-700',
+  'bg-teal-700',
+  'bg-emerald-800',
+  'bg-amber-700',
+  'bg-slate-600',
+  'bg-slate-700',
+  'bg-slate-800',
+  'bg-zinc-700',
+  'bg-zinc-800',
+  'bg-stone-600',
+  'bg-stone-800'
 ];
 
 export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
@@ -40,11 +74,18 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
   currency,
   onAddEmployee,
   onUpdateEmployee,
-  onDeleteEmployee
+  onDeleteEmployee,
+  onGoToExEmployees
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [filterFrequency, setFilterFrequency] = useState<'all' | 'quincenal' | 'mensual'>('all');
+  const [toastMessage, setToastMessage] = useState<string>('');
+
+  // Deactivation confirmation modal state
+  const [deactivatingEmp, setDeactivatingEmp] = useState<Employee | null>(null);
+  const [deactivateEndDate, setDeactivateEndDate] = useState<string>('');
+  const [deactivateReason, setDeactivateReason] = useState<string>('');
 
   // Form fields
   const [name, setName] = useState('');
@@ -58,6 +99,15 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
   const [defaultExit2, setDefaultExit2] = useState('17:30');
   const [phone, setPhone] = useState('');
   const [color, setColor] = useState(COLORS[0]);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [exitReason, setExitReason] = useState('');
+  const [isActiveStatus, setIsActiveStatus] = useState(true);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(''), 4000);
+  };
 
   const openAddModal = () => {
     setEditingEmp(null);
@@ -72,6 +122,10 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
     setDefaultExit2('17:30');
     setPhone('');
     setColor(COLORS[Math.floor(Math.random() * COLORS.length)]);
+    setStartDate(getTodayDateStr());
+    setEndDate('');
+    setExitReason('');
+    setIsActiveStatus(true);
     setShowModal(true);
   };
 
@@ -88,6 +142,10 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
     setDefaultExit2(emp.defaultExit2 || '17:30');
     setPhone(emp.phone || '');
     setColor(emp.color || COLORS[0]);
+    setStartDate(emp.startDate || '');
+    setEndDate(emp.endDate || '');
+    setExitReason(emp.exitReason || '');
+    setIsActiveStatus(emp.active);
     setShowModal(true);
   };
 
@@ -108,8 +166,13 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
         defaultEntry2,
         defaultExit2,
         phone: phone.trim(),
-        color
+        color,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        exitReason: exitReason.trim() || undefined,
+        active: isActiveStatus
       });
+      showToast(`Empleado ${name.trim()} actualizado correctamente.`);
     } else {
       onAddEmployee({
         name: name.trim(),
@@ -122,15 +185,43 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
         defaultEntry2,
         defaultExit2,
         phone: phone.trim(),
-        active: true,
-        color
+        active: isActiveStatus,
+        color,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+        exitReason: exitReason.trim() || undefined
       });
+      showToast(`Empleado ${name.trim()} agregado con éxito.`);
     }
     setShowModal(false);
   };
 
+  // Open modal to deactivate employee and move to Ex Empleados
+  const openDeactivateModal = (emp: Employee) => {
+    setDeactivatingEmp(emp);
+    setDeactivateEndDate(emp.endDate || getTodayDateStr());
+    setDeactivateReason(emp.exitReason || '');
+  };
+
+  const handleConfirmDeactivate = () => {
+    if (!deactivatingEmp) return;
+    onUpdateEmployee({
+      ...deactivatingEmp,
+      active: false,
+      endDate: deactivateEndDate || getTodayDateStr(),
+      exitReason: deactivateReason.trim() || undefined
+    });
+    showToast(`${deactivatingEmp.name} fue trasladado a la pestaña Ex Empleados.`);
+    setDeactivatingEmp(null);
+  };
+
   const toggleActive = (emp: Employee) => {
-    onUpdateEmployee({ ...emp, active: !emp.active });
+    if (emp.active) {
+      openDeactivateModal(emp);
+    } else {
+      onUpdateEmployee({ ...emp, active: true });
+      showToast(`${emp.name} fue reactivado en el equipo.`);
+    }
   };
 
   const handleFormKeyDown = (e: React.KeyboardEvent<HTMLFormElement>) => {
@@ -152,26 +243,39 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
     }
   };
 
+  const activeEmployees = employees.filter(e => e.active);
+  const exEmployeesCount = employees.filter(e => !e.active).length;
+
   const filteredEmployees = employees.filter(emp => {
+    // Show active employees by default in this view
+    if (!emp.active) return false;
     if (filterFrequency === 'all') return true;
     const freq = emp.paymentFrequency || 'mensual';
     return freq === filterFrequency;
   });
 
-  const quincenalesCount = employees.filter(e => e.paymentFrequency === 'quincenal').length;
-  const mensualesCount = employees.filter(e => (e.paymentFrequency || 'mensual') === 'mensual').length;
+  const quincenalesCount = activeEmployees.filter(e => e.paymentFrequency === 'quincenal').length;
+  const mensualesCount = activeEmployees.filter(e => (e.paymentFrequency || 'mensual') === 'mensual').length;
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 border border-slate-700 animate-in fade-in slide-in-from-bottom-2 text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Top action bar - Fixed sticky header */}
       <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-600" />
-            <span>Gestión de Empleados ({employees.length})</span>
+            <span>Gestión de Empleados ({activeEmployees.length} activos)</span>
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure tarifas por hora, horario estándar y modalidad de liquidación (quincenal cada 15 días o mensual cada 30 días).
+            Tarifas por hora, fechas de inicio y salida, horarios y modalidad de liquidación.
           </p>
         </div>
 
@@ -186,7 +290,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Todos ({employees.length})
+              Todos ({activeEmployees.length})
             </button>
             <button
               onClick={() => setFilterFrequency('quincenal')}
@@ -210,6 +314,18 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
             </button>
           </div>
 
+          {/* Jump to Ex Empleados */}
+          {onGoToExEmployees && (
+            <button
+              onClick={onGoToExEmployees}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors shrink-0 cursor-pointer border border-slate-200"
+              title="Ver archivo de empleados anteriores y sus planillas"
+            >
+              <UserX className="w-3.5 h-3.5 text-slate-600" />
+              <span>Ex Empleados ({exEmployeesCount})</span>
+            </button>
+          )}
+
           <button
             onClick={openAddModal}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors shrink-0 cursor-pointer"
@@ -227,36 +343,31 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
             <Users className="w-8 h-8" />
           </div>
           <h3 className="text-base font-bold text-slate-800">
-            {employees.length === 0 ? 'No hay empleados registrados' : 'No hay empleados con este filtro'}
+            {activeEmployees.length === 0 ? 'No hay empleados activos' : 'No hay empleados con este filtro'}
           </h3>
           <p className="text-sm text-slate-500 max-w-md mx-auto mt-1 mb-6">
-            {employees.length === 0
-              ? 'Comience agregando su primer empleado con su cargo, tarifa por hora y frecuencia de cobro.'
+            {activeEmployees.length === 0
+              ? 'Agregue un nuevo empleado con su fecha de comienzo, cargo y tarifa por hora.'
               : 'Cambie el filtro para ver todos los empleados registrados.'}
           </p>
-          {employees.length === 0 && (
-            <button
-              onClick={openAddModal}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Agregar Primer Empleado</span>
-            </button>
-          )}
+          <button
+            onClick={openAddModal}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Agregar Primer Empleado</span>
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredEmployees.map(emp => {
             const isQuincenal = emp.paymentFrequency === 'quincenal';
+            const tenure = calculateTenure(emp.startDate, emp.endDate);
 
             return (
               <div
                 key={emp.id}
-                className={`bg-white rounded-2xl border transition-all ${
-                  emp.active
-                    ? 'border-slate-200 shadow-sm hover:border-slate-300'
-                    : 'border-slate-200 bg-slate-50/70 opacity-60'
-                } p-5 flex flex-col justify-between`}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-slate-300 p-5 flex flex-col justify-between transition-all"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
@@ -274,10 +385,8 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                       </div>
                     </div>
 
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      emp.active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
-                    }`}>
-                      {emp.active ? 'Activo' : 'Inactivo'}
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      Activo
                     </span>
                   </div>
 
@@ -292,6 +401,32 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                       <span>{isQuincenal ? 'Pago Quincenal (15 días)' : 'Pago Mensual (30 días)'}</span>
                     </span>
                   </div>
+
+                  {/* Employment dates box */}
+                  {emp.startDate && (
+                    <div className="mt-2.5 p-2.5 bg-slate-50/80 rounded-xl border border-slate-200/70 space-y-1 text-xs">
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span className="flex items-center gap-1.5 text-slate-500">
+                          <CalendarDays className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Inicio:</span>
+                        </span>
+                        <span className="font-semibold text-slate-800">
+                          {formatDateDisplay(emp.startDate)}
+                        </span>
+                      </div>
+                      {tenure && (
+                        <div className="flex items-center justify-between text-slate-600 pt-0.5 border-t border-slate-200/50">
+                          <span className="flex items-center gap-1.5 text-slate-500">
+                            <Clock className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Antigüedad:</span>
+                          </span>
+                          <span className="font-semibold text-blue-700 text-[11px]">
+                            {tenure}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Rate and schedule box */}
                   <div className="mt-3 pt-3 border-t border-slate-100 space-y-2 text-xs">
@@ -322,7 +457,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                         <Clock className="w-3.5 h-3.5 text-indigo-600" />
                         <span>Turno habitual:</span>
                       </span>
-                      <span className="font-semibold text-slate-700">
+                      <span className="font-semibold text-slate-700 text-[11px]">
                         {emp.defaultEntry1 || '07:00'}-{emp.defaultExit1 || '11:30'} · {emp.defaultEntry2 || '12:30'}-{emp.defaultExit2 || '17:30'}
                       </span>
                     </div>
@@ -345,13 +480,10 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                 <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
                   <button
                     onClick={() => toggleActive(emp)}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                      emp.active
-                        ? 'text-slate-600 hover:bg-slate-100'
-                        : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'
-                    }`}
+                    className="text-xs font-semibold px-2.5 py-1 rounded-lg text-slate-600 hover:bg-amber-50 hover:text-amber-800 transition-colors cursor-pointer"
+                    title="Desactivar y mover a la pestaña de Ex Empleados"
                   >
-                    {emp.active ? 'Desactivar' : 'Reactivar'}
+                    Desactivar
                   </button>
 
                   <div className="flex items-center space-x-1">
@@ -364,8 +496,9 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm(`¿Está seguro de eliminar a ${emp.name}?`)) {
+                        if (confirm(`¿Está seguro de eliminar permanentemente a ${emp.name}?`)) {
                           onDeleteEmployee(emp.id);
+                          showToast(`Empleado ${emp.name} eliminado.`);
                         }
                       }}
                       title="Eliminar empleado"
@@ -562,19 +695,77 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                 />
               </div>
 
+              {/* Fechas de Comienzo y Salida */}
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-3">
+                <span className="block text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <CalendarDays className="w-4 h-4 text-emerald-600" />
+                  <span>Fechas de Empleo en la Empresa:</span>
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      Fecha de Comienzo / Ingreso *
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-800"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Día en que inició a trabajar
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      Fecha de Salida (Opcional)
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-800"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-0.5 block">
+                      Si se retiró de la empresa
+                    </span>
+                  </div>
+                </div>
+
+                {endDate && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                      Motivo de Salida (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={exitReason}
+                      onChange={(e) => setExitReason(e.target.value)}
+                      placeholder="Ej. Renuncia, fin de contrato, mutuo acuerdo"
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
               {/* Color selector */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Color de etiqueta
+                  Color de etiqueta ({COLORS.length} colores disponibles)
                 </label>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap gap-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl">
                   {COLORS.map((c) => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => setColor(c)}
-                      className={`w-7 h-7 rounded-full ${c} flex items-center justify-center transition-transform cursor-pointer ${
-                        color === c ? 'ring-2 ring-offset-2 ring-slate-900 scale-110' : 'opacity-80'
+                      title={`Seleccionar color ${c}`}
+                      className={`w-7 h-7 rounded-full ${c} flex items-center justify-center transition-all cursor-pointer ${
+                        color === c
+                          ? 'ring-2 ring-offset-2 ring-slate-900 scale-110 shadow-sm'
+                          : 'opacity-80 hover:opacity-100 hover:scale-105'
                       }`}
                     >
                       {color === c && <Check className="w-3.5 h-3.5 text-white" />}
@@ -599,6 +790,81 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Desactivar Empleado y Mover a Ex Empleados */}
+      {deactivatingEmp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">
+                  <UserX className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-base">
+                  Mover a Ex Empleados
+                </h3>
+              </div>
+              <button
+                onClick={() => setDeactivatingEmp(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3.5 text-xs">
+              <p className="text-slate-600">
+                Al desactivar a <strong>{deactivatingEmp.name}</strong>, dejará de aparecer en la carga diaria y pasará a la pestaña de <strong>Ex Empleados</strong>.
+              </p>
+              <div className="p-3 bg-blue-50/70 border border-blue-200/60 rounded-xl text-blue-900 text-[11px]">
+                ℹ️ <strong>Importante:</strong> Todas sus planillas mensuales, horas registradas y liquidaciones anteriores se guardan intactas y podrán consultarse en la pestaña <strong>Ex Empleados</strong> en cualquier momento.
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Fecha de Salida de la Empresa *
+                </label>
+                <input
+                  type="date"
+                  value={deactivateEndDate}
+                  onChange={(e) => setDeactivateEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl font-semibold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Motivo de Salida (Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={deactivateReason}
+                  onChange={(e) => setDeactivateReason(e.target.value)}
+                  placeholder="Ej. Renuncia voluntaria, fin de contrato, jubilación..."
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-slate-900"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setDeactivatingEmp(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeactivate}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  Confirmar y Mover a Ex Empleados
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

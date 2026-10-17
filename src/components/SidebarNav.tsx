@@ -5,6 +5,7 @@ import {
   Calendar, 
   DollarSign, 
   Users, 
+  UserX,
   ChevronRight,
   Layers
 } from 'lucide-react';
@@ -12,11 +13,13 @@ import {
 interface SidebarNavProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
+  exEmployeesCount?: number;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
   activeTab,
-  setActiveTab
+  setActiveTab,
+  exEmployeesCount = 0
 }) => {
   const navItems: {
     id: ActiveTab;
@@ -44,6 +47,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       id: 'employees',
       label: 'Empleados',
       icon: <Users className="w-5 h-5 shrink-0" />
+    },
+    {
+      id: 'ex-employees',
+      label: 'Ex Empleados',
+      icon: <UserX className="w-5 h-5 shrink-0" />,
+      badge: exEmployeesCount > 0 ? `${exEmployeesCount}` : undefined
     }
   ];
 

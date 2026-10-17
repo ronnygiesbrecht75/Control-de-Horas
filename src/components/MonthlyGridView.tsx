@@ -32,7 +32,10 @@ import {
   Plus,
   ArrowRight,
   LogOut,
-  LogIn
+  LogIn,
+  Download,
+  Printer,
+  FileText
 } from 'lucide-react';
 
 interface MonthlyGridViewProps {
@@ -244,6 +247,66 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
   const hourlyRate = employee?.hourlyRate || 0;
   const estimatedPay = totalMonthHours * hourlyRate;
 
+  // State to control PDF / Print modal
+  const [showPDFModal, setShowPDFModal] = useState<boolean>(false);
+
+  // Generate and download Excel (.csv formatted for MS Excel)
+  const handleExportExcel = () => {
+    if (!employee) return;
+    const lines: string[] = [];
+
+    lines.push(`PLANILLA MENSUAL DETALLADA DE CONTROL DE HORAS`);
+    lines.push(`Empleado:;"${employee.name.replace(/"/g, '""')}"`);
+    lines.push(`Cargo:;"${(employee.role || '').replace(/"/g, '""')}"`);
+    lines.push(`Mes / Periodo:;"${formatMonthSpanish(monthStr)}"`);
+    lines.push(`Tarifa por hora:;"${formatCurrencyWithSymbol(employee.hourlyRate, currency.symbol, currency.code)}/h"`);
+    lines.push(``);
+
+    lines.push(`Fecha;Dia;Turno 1 Entrada;Turno 1 Salida;Turno 2 Entrada;Turno 2 Salida;Salidas Intermedias;Total Horas Netas;Estado;Observaciones`);
+
+    allDays.forEach((dateStr) => {
+      const rec = getRecordForDate(dateStr);
+      const sunday = isSunday(dateStr);
+      const dayName = formatDateFriendlySpanish(dateStr).split(',')[0] || '';
+      const formattedDate = formatDateShortSpanish(dateStr);
+
+      const exitsStr = (rec.intermediateExits || [])
+        .filter(x => x.exitTime && x.returnTime)
+        .map(x => `${x.exitTime}-${x.returnTime}${x.reason ? ` (${x.reason})` : ''}`)
+        .join(' | ');
+
+      let estado = 'Normal';
+      if (rec.isAbsent) estado = 'Ausente / Falta';
+      else if (sunday) estado = 'Domingo';
+      else if ((rec.totalHours || 0) === 0) estado = 'Sin registro';
+
+      const totalH = (rec.totalHours || 0).toFixed(2).replace('.', ',');
+
+      lines.push(
+        `"${formattedDate}";"${dayName}";"${rec.entry1 || ''}";"${rec.exit1 || ''}";"${rec.entry2 || ''}";"${rec.exit2 || ''}";"${exitsStr}";"${totalH}";"${estado}";"${(rec.notes || '').replace(/"/g, '""')}"`
+      );
+    });
+
+    lines.push(``);
+    lines.push(`RESUMEN GENERAL DEL MES`);
+    lines.push(`Total Dias Trabajados:;"${workedDaysCount} dias"`);
+    lines.push(`Total Ausencias:;"${absentDaysCount} ausencias"`);
+    lines.push(`Total Salidas Intermedias:;"-${totalDeductedExitsHours.toFixed(2).replace('.', ',')} h"`);
+    lines.push(`Total Horas Netas:;"${totalMonthHours.toFixed(2).replace('.', ',')} h (${formatHoursReadable(totalMonthHours)})"`);
+    lines.push(`Total Estimado a Cobrar:;"${formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}"`);
+
+    const csvContent = '\uFEFF' + lines.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Planilla_${employee.name.replace(/\s+/g, '_')}_${monthStr}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4">
       {/* Encabezado Fijo Completo de la Planilla Mensual (Controles + Resumen KPI) */}
@@ -261,16 +324,32 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                 onChange={(e) => setSelectedEmployeeId(e.target.value)}
                 className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
               >
-                {activeEmployees.map(emp => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.name} ({emp.role})
-                  </option>
-                ))}
+                <optgroup label="Empleados Activos">
+                  {activeEmployees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.role})
+                    </option>
+                  ))}
+                </optgroup>
+                {employees.filter(e => !e.active).length > 0 && (
+                  <optgroup label="Ex Empleados (Archivados)">
+                    {employees.filter(e => !e.active).map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} (Ex Empleado)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
 
             {employee && (
               <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 border-l border-slate-200 pl-3">
+                {!employee.active && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                    Ex Empleado
+                  </span>
+                )}
                 <span>Tarifa:</span>
                 <strong className="text-slate-800 font-bold">
                   {formatCurrencyWithSymbol(employee.hourlyRate, currency.symbol, currency.code)}/h
@@ -384,14 +463,39 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={onGoToSettlement}
-            className="flex items-center gap-2 px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer self-start sm:self-auto"
-          >
-            <span>Generar Liquidación</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            {/* Generar Excel */}
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Descargar Planilla Mensual en formato Excel (.csv)"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Generar Excel</span>
+            </button>
+
+            {/* Generar PDF */}
+            <button
+              type="button"
+              onClick={() => setShowPDFModal(true)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Imprimir o guardar como PDF la Planilla Mensual"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Generar PDF</span>
+            </button>
+
+            {/* Generar Liquidación */}
+            <button
+              type="button"
+              onClick={onGoToSettlement}
+              className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              <span>Generar Liquidación</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto max-h-[calc(100vh-230px)] overflow-y-auto">
@@ -899,6 +1003,188 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                 </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Impresión / Generar PDF de Planilla Mensual Detallada */}
+      {showPDFModal && employee && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 z-50 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full border border-slate-200 overflow-hidden my-auto max-h-[95vh] flex flex-col">
+            {/* Modal Header (se oculta al imprimir) */}
+            <div className="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white print:hidden">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-slate-800 rounded-xl text-blue-400">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    Generar PDF / Imprimir Planilla Mensual
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {employee.name} · {formatMonthSpanish(monthStr)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Imprimir / Guardar como PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowPDFModal(false)}
+                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Printable Document Body */}
+            <div id="printable-monthly-grid" className="p-6 sm:p-8 overflow-y-auto space-y-5 bg-white text-slate-800 font-sans text-xs">
+              {/* Document Header */}
+              <div className="border-b-2 border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 block">
+                    Sistema de Control de Horas & Planillas
+                  </span>
+                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    Planilla Mensual Detallada de Horas
+                  </h1>
+                  <p className="text-xs text-slate-500 font-medium mt-0.5">
+                    Registro oficial de asistencia, turnos y liquidación horaria
+                  </p>
+                </div>
+
+                <div className="text-right sm:text-right text-xs text-slate-600">
+                  <p className="font-bold text-slate-800">
+                    Mes: <span className="capitalize">{formatMonthSpanish(monthStr)}</span>
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Emitido: {new Date().toLocaleDateString('es-PY')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Employee & Summary Info Box */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <div>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Empleado</p>
+                  <p className="text-base font-extrabold text-slate-900">{employee.name}</p>
+                  <p className="text-xs text-slate-600 font-medium">Cargo: {employee.role}</p>
+                  <p className="text-xs text-slate-600 font-medium">
+                    Tarifa por hora: {formatCurrencyWithSymbol(employee.hourlyRate, currency.symbol, currency.code)} / hora
+                  </p>
+                </div>
+
+                <div className="sm:text-right space-y-1">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Resumen del Mes</p>
+                  <p className="text-xs text-slate-700">
+                    Días trabajados: <strong className="text-slate-900">{workedDaysCount} días</strong>
+                    {absentDaysCount > 0 && <span className="text-red-600 ml-1">({absentDaysCount} ausencias)</span>}
+                  </p>
+                  <p className="text-xs text-slate-700">
+                    Total Horas Netas: <strong className="text-blue-700 font-black">{totalMonthHours.toFixed(2)} h</strong> ({formatHoursReadable(totalMonthHours)})
+                  </p>
+                  <p className="text-sm font-black text-slate-900 mt-1">
+                    Total Estimado: {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Detailed Days Table */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left border-collapse text-[11px]">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 uppercase text-[10px]">
+                      <th className="py-2 px-2.5">Fecha / Día</th>
+                      <th className="py-2 px-2.5">Turno 1 (Mañana)</th>
+                      <th className="py-2 px-2.5">Turno 2 (Tarde)</th>
+                      <th className="py-2 px-2.5">Salida Intermedia</th>
+                      <th className="py-2 px-2.5 text-center">Horas Netas</th>
+                      <th className="py-2 px-2.5">Observaciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {allDays.map((dateStr) => {
+                      const rec = getRecordForDate(dateStr);
+                      const sunday = isSunday(dateStr);
+                      const exits = (rec.intermediateExits || []).filter(x => x.exitTime && x.returnTime);
+
+                      return (
+                        <tr key={dateStr} className={sunday ? 'bg-slate-50/60' : rec.isAbsent ? 'bg-red-50/30' : ''}>
+                          <td className="py-1.5 px-2.5 font-bold whitespace-nowrap">
+                            {formatDateShortSpanish(dateStr)} {sunday && <span className="text-[9px] text-amber-700 font-bold">(Dom)</span>}
+                          </td>
+                          <td className="py-1.5 px-2.5 whitespace-nowrap">
+                            {rec.isAbsent ? (
+                              <span className="text-red-600 italic">Ausente</span>
+                            ) : rec.entry1 || rec.exit1 ? (
+                              `${rec.entry1 || '--:--'} - ${rec.exit1 || '--:--'}`
+                            ) : (
+                              '--'
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2.5 whitespace-nowrap">
+                            {rec.isAbsent ? (
+                              '--'
+                            ) : rec.entry2 || rec.exit2 ? (
+                              `${rec.entry2 || '--:--'} - ${rec.exit2 || '--:--'}`
+                            ) : (
+                              '--'
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2.5 text-amber-700">
+                            {exits.length > 0
+                              ? exits.map(x => `${x.exitTime}-${x.returnTime}`).join(', ')
+                              : '--'}
+                          </td>
+                          <td className="py-1.5 px-2.5 text-center font-bold">
+                            {(rec.totalHours || 0) > 0 ? `${rec.totalHours.toFixed(2)} h` : '0.00 h'}
+                          </td>
+                          <td className="py-1.5 px-2.5 text-slate-500 italic truncate max-w-[200px]">
+                            {rec.notes || '--'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-300">
+                      <td colSpan={4} className="py-2.5 px-3 text-right">
+                        TOTAL HORAS NETAS DEL MES:
+                      </td>
+                      <td className="py-2.5 px-2.5 text-center text-blue-700 text-xs">
+                        {totalMonthHours.toFixed(2)} h
+                      </td>
+                      <td className="py-2.5 px-3 font-black text-slate-900">
+                        {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Signatures Section */}
+              <div className="pt-8 mt-6 border-t border-slate-200 grid grid-cols-2 gap-8 text-center text-xs">
+                <div>
+                  <div className="border-t border-slate-400 w-48 mx-auto mb-1"></div>
+                  <p className="font-bold text-slate-800">{employee.name}</p>
+                  <p className="text-[11px] text-slate-500">Firma del Empleado / Conforme</p>
+                </div>
+                <div>
+                  <div className="border-t border-slate-400 w-48 mx-auto mb-1"></div>
+                  <p className="font-bold text-slate-800">Administración</p>
+                  <p className="text-[11px] text-slate-500">Aprobado y Verificado</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

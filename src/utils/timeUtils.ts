@@ -441,3 +441,61 @@ export function createWhatsAppShareUrl(messageText: string, phone?: string): str
   return `https://wa.me/?text=${encodedText}`;
 }
 
+/**
+ * Format YYYY-MM-DD into DD/MM/YYYY
+ */
+export function formatDateDisplay(dateStr?: string): string {
+  if (!dateStr || !dateStr.includes('-')) return '';
+  const parts = dateStr.trim().split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+}
+
+/**
+ * Calculate tenure / length of service between startDate and endDate (or today)
+ * Returns friendly Spanish string e.g. "1 año y 4 meses", "8 meses", "23 días"
+ */
+export function calculateTenure(startDate?: string, endDate?: string): string {
+  if (!startDate) return '';
+  const start = new Date(startDate + 'T00:00:00');
+  const end = endDate ? new Date(endDate + 'T00:00:00') : new Date();
+  
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) {
+    return '';
+  }
+
+  let years = end.getFullYear() - start.getFullYear();
+  let months = end.getMonth() - start.getMonth();
+  let days = end.getDate() - start.getDate();
+
+  if (days < 0) {
+    months -= 1;
+    // Days in previous month
+    const prevMonthLastDay = new Date(end.getFullYear(), end.getMonth(), 0).getDate();
+    days += prevMonthLastDay;
+  }
+
+  if (months < 0) {
+    years -= 1;
+    months += 12;
+  }
+
+  const parts: string[] = [];
+  if (years > 0) {
+    parts.push(`${years} ${years === 1 ? 'año' : 'años'}`);
+  }
+  if (months > 0) {
+    parts.push(`${months} ${months === 1 ? 'mes' : 'meses'}`);
+  }
+  if (years === 0 && days > 0) {
+    parts.push(`${days} ${days === 1 ? 'día' : 'días'}`);
+  }
+
+  if (parts.length === 0) return 'Menos de 1 día';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} y ${parts[1]}`;
+}
+
+

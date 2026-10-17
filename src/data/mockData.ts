@@ -121,7 +121,8 @@ export function loadSampleDemoData(): { employees: Employee[], records: DailyTim
       defaultExit2: '18:00',
       phone: '+595 981 123 456',
       active: true,
-      color: 'bg-orange-600'
+      color: 'bg-orange-600',
+      startDate: '2024-03-01'
     },
     {
       id: 'emp-2',
@@ -135,7 +136,25 @@ export function loadSampleDemoData(): { employees: Employee[], records: DailyTim
       defaultExit2: '17:30',
       phone: '+595 982 234 567',
       active: true,
-      color: 'bg-amber-600'
+      color: 'bg-amber-600',
+      startDate: '2024-06-15'
+    },
+    {
+      id: 'emp-3',
+      name: 'Juan Benítez',
+      role: 'Técnico de Mantenimiento',
+      hourlyRate: 20000,
+      paymentFrequency: 'quincenal',
+      defaultEntry1: '07:30',
+      defaultExit1: '11:30',
+      defaultEntry2: '13:00',
+      defaultExit2: '17:00',
+      phone: '+595 983 345 678',
+      active: false,
+      color: 'bg-slate-600',
+      startDate: '2023-08-01',
+      endDate: '2026-08-31',
+      exitReason: 'Fin de contrato / Mutuo acuerdo'
     }
   ];
 

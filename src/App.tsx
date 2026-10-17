@@ -35,6 +35,7 @@ import { DailyEntryView } from './components/DailyEntryView';
 import { MonthlyGridView } from './components/MonthlyGridView';
 import { MonthlySettlementView } from './components/MonthlySettlementView';
 import { EmployeeManagementView } from './components/EmployeeManagementView';
+import { ExEmployeesView } from './components/ExEmployeesView';
 import { SidebarNav } from './components/SidebarNav';
 import { LoginScreen } from './components/LoginScreen';
 import { AutoUpdater } from './components/AutoUpdater';
@@ -277,6 +278,7 @@ export default function App() {
             <SidebarNav
               activeTab={activeTab}
               setActiveTab={setActiveTab}
+              exEmployeesCount={employees.filter(e => !e.active).length}
             />
           </aside>
 
@@ -327,6 +329,19 @@ export default function App() {
                 onAddEmployee={handleAddEmployee}
                 onUpdateEmployee={handleUpdateEmployee}
                 onDeleteEmployee={handleDeleteEmployee}
+                onGoToExEmployees={() => setActiveTab('ex-employees')}
+              />
+            )}
+
+            {activeTab === 'ex-employees' && (
+              <ExEmployeesView
+                employees={employees}
+                records={records}
+                currency={currency}
+                onUpdateEmployee={handleUpdateEmployee}
+                onDeleteEmployee={handleDeleteEmployee}
+                onUpdateRecord={handleUpdateRecord}
+                onGoToActiveEmployees={() => setActiveTab('employees')}
               />
             )}
           </div>

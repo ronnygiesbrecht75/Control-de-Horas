@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Employee, DailyTimeRecord, IntermediateExit } from '../types';
 import { 
   calculateDailyTotalHours, 
@@ -24,7 +24,9 @@ import {
   ArrowRight,
   Plus,
   LogOut,
-  LogIn
+  LogIn,
+  Users,
+  User
 } from 'lucide-react';
 
 interface DailyEntryViewProps {
@@ -49,6 +51,37 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
   const [recentlySaved, setRecentlySaved] = useState<Record<string, boolean>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const activeEmployees = employees.filter(e => e.active);
+
+  // Single-employee view selection state
+  const [selectedEmpId, setSelectedEmpId] = useState<string>(() => {
+    return activeEmployees[0]?.id || employees[0]?.id || '';
+  });
+
+  // Sync selectedEmpId if employees list changes
+  useEffect(() => {
+    if (!selectedEmpId && activeEmployees.length > 0) {
+      setSelectedEmpId(activeEmployees[0].id);
+    } else if (selectedEmpId && !activeEmployees.some(e => e.id === selectedEmpId) && activeEmployees.length > 0) {
+      setSelectedEmpId(activeEmployees[0].id);
+    }
+  }, [activeEmployees, selectedEmpId]);
+
+  const selectedEmployee = activeEmployees.find(e => e.id === selectedEmpId) || activeEmployees[0] || employees[0];
+  const currentEmpIndex = activeEmployees.findIndex(e => e.id === (selectedEmployee?.id || ''));
+
+  const handlePrevEmployee = () => {
+    if (activeEmployees.length <= 1) return;
+    const prevIdx = (currentEmpIndex - 1 + activeEmployees.length) % activeEmployees.length;
+    setSelectedEmpId(activeEmployees[prevIdx].id);
+    setEmployeeDays({});
+  };
+
+  const handleNextEmployee = () => {
+    if (activeEmployees.length <= 1) return;
+    const nextIdx = (currentEmpIndex + 1) % activeEmployees.length;
+    setSelectedEmpId(activeEmployees[nextIdx].id);
+    setEmployeeDays({});
+  };
 
   // Derive current year and month from the top selection
   const [currentYear, currentMonth, currentDay] = dateStr.split('-').map(Number);
@@ -287,7 +320,8 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
   };
 
   const handleFillEmpDefault = (emp: Employee) => {
-    const rec = getRecordForEmployee(emp);
+    const empTargetDate = getEmpDate(emp.id);
+    const rec = getRecordForEmployee(emp, empTargetDate);
     const entry1 = emp.defaultEntry1 || '07:00';
     const exit1 = emp.defaultExit1 || '11:30';
     const entry2 = emp.defaultEntry2 || '12:30';
@@ -303,7 +337,31 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
       isAbsent: false,
       totalHours
     });
-    triggerSaveToast(`Horario habitual cargado para ${emp.name}`);
+
+    // Provide visual feedback
+    setRecentlySaved(prev => ({ ...prev, [emp.id]: true }));
+    setTimeout(() => {
+      setRecentlySaved(prev => ({ ...prev, [emp.id]: false }));
+    }, 1800);
+
+    // Compute next day (e.g. 1 de octubre -> 2 de octubre)
+    const curDate = new Date(empTargetDate + 'T00:00:00');
+    curDate.setDate(curDate.getDate() + 1);
+    const y = curDate.getFullYear();
+    const m = String(curDate.getMonth() + 1).padStart(2, '0');
+    const d = String(curDate.getDate()).padStart(2, '0');
+    const nextDateStr = `${y}-${m}-${d}`;
+
+    // Advance to next day and clear employee day overrides
+    setDateStr(nextDateStr);
+    setEmployeeDays({});
+
+    triggerSaveToast(
+      `⚡ Horas habituales guardadas del ${formatDateShortSpanish(empTargetDate)} para ${emp.name}! Avanzado al ${formatDateShortSpanish(nextDateStr)}`
+    );
+
+    // Automatically focus the first input box (Entrada 1) for the next day
+    focusElement(`input-entry1-${emp.id}`);
   };
 
   const handleSaveEmployeeAndAdvanceDay = (emp: Employee) => {
@@ -478,19 +536,106 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
         </div>
       )}
 
-      {/* Employee Cards List */}
-      <div className="space-y-4">
-        {activeEmployees.map((emp) => {
-          const empTargetDate = getEmpDate(emp.id);
-          const empDayValue = getEmpDay(emp.id);
-          const rec = getRecordForEmployee(emp, empTargetDate);
-          const hoursSummary = getRecordHoursSummary(rec);
-          const isCurrentDate = empTargetDate === dateStr;
-          const exits = rec.intermediateExits || [];
+      {/* Selector de Empleado (Para ver y cargar 1 persona a la vez) */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 sm:p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-blue-600" />
+              <span>Empleado:</span>
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handlePrevEmployee}
+                disabled={activeEmployees.length <= 1}
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer border border-slate-200"
+                title="Empleado anterior"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
 
-          return (
-            <div
-              key={emp.id}
+              <select
+                value={selectedEmployee?.id || ''}
+                onChange={(e) => {
+                  setSelectedEmpId(e.target.value);
+                  setEmployeeDays({});
+                }}
+                className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+              >
+                {activeEmployees.map((emp, idx) => {
+                  const r = getRecordForEmployee(emp, dateStr);
+                  const hasHours = (r.totalHours || 0) > 0;
+                  return (
+                    <option key={emp.id} value={emp.id}>
+                      {idx + 1}. {emp.name} ({emp.role}) {hasHours ? `✓ (${r.totalHours}h)` : ''}
+                    </option>
+                  );
+                })}
+              </select>
+
+              <button
+                type="button"
+                onClick={handleNextEmployee}
+                disabled={activeEmployees.length <= 1}
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors cursor-pointer border border-slate-200"
+                title="Siguiente empleado"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Quick pill tabs to switch employee with 1 click */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 max-w-full">
+            {activeEmployees.map((emp) => {
+              const isSelected = emp.id === selectedEmployee?.id;
+              const r = getRecordForEmployee(emp, dateStr);
+              const hasHours = (r.totalHours || 0) > 0;
+
+              return (
+                <button
+                  key={emp.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedEmpId(emp.id);
+                    setEmployeeDays({});
+                  }}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${emp.color || 'bg-blue-600'} ${isSelected ? 'ring-1 ring-white' : ''}`} />
+                  <span>{emp.name.split(' ')[0]}</span>
+                  {hasHours && (
+                    <span className={`text-[10px] ${isSelected ? 'text-blue-100' : 'text-emerald-600 font-extrabold'}`}>
+                      ✓
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Cuadro individual de Carga de Horas del Empleado seleccionado */}
+      <div className="space-y-4">
+        {selectedEmployee ? (
+          (() => {
+            const emp = selectedEmployee;
+            const empTargetDate = getEmpDate(emp.id);
+            const empDayValue = getEmpDay(emp.id);
+            const rec = getRecordForEmployee(emp, empTargetDate);
+            const hoursSummary = getRecordHoursSummary(rec);
+            const isCurrentDate = empTargetDate === dateStr;
+            const exits = rec.intermediateExits || [];
+
+            return (
+              <div
+                key={emp.id}
               className={`bg-white rounded-2xl shadow-xs border transition-all p-4 sm:p-5 ${
                 rec.isAbsent
                   ? 'border-red-200 bg-red-50/20'
@@ -872,8 +1017,17 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                 </div>
               )}
             </div>
-          );
-        })}
+            );
+          })()
+        ) : (
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-500">
+            <Users className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+            <p className="font-bold text-slate-700">No hay empleados activos</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Agregue o active empleados en la sección "Empleados" para registrar sus horas.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -480,106 +480,97 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Period Selector Card - Fixed sticky header */}
-      <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600">
-                <DollarSign className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">
-                  Liquidación y Pago de Empleados
-                </h2>
-                <p className="text-xs text-slate-500">
-                  Elija si desea liquidar cada 15 días (quincenal) o cada 30 días (mensual), o defina un rango de fechas personalizado.
-                </p>
-              </div>
+      {/* Top Banner & Period Selector Card - Fixed sticky header (compact 30% reduced height) */}
+      <div className="sticky top-16 z-20 bg-white/95 backdrop-blur-md rounded-2xl shadow-sm border border-slate-200 p-3 sm:p-3.5 space-y-2.5">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2.5">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-emerald-50 rounded-xl text-emerald-600 shrink-0">
+              <DollarSign className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-900 leading-tight">
+                Liquidación y Pago de Empleados
+              </h2>
             </div>
           </div>
 
-          {/* Month Picker and CSV Export */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200">
+          {/* Month Picker, Language and CSV Export */}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200">
               <button
                 onClick={() => setMonthStr(getPrevMonthStr(monthStr))}
                 title="Mes anterior"
-                className="p-1.5 hover:bg-white text-slate-600 rounded-lg transition-colors cursor-pointer"
+                className="p-1 hover:bg-white text-slate-600 rounded-lg transition-colors cursor-pointer"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-              <div className="px-3 py-1 font-bold text-sm text-slate-800 capitalize">
+              <div className="px-2 py-0.5 font-bold text-xs text-slate-800 capitalize">
                 {formatMonthSpanish(monthStr)}
               </div>
               <button
                 onClick={() => setMonthStr(getNextMonthStr(monthStr))}
                 title="Mes siguiente"
-                className="p-1.5 hover:bg-white text-slate-600 rounded-lg transition-colors cursor-pointer"
+                className="p-1 hover:bg-white text-slate-600 rounded-lg transition-colors cursor-pointer"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {/* Language Selector for Receipts & WhatsApp */}
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
-              <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1 px-2">
-                <Globe className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Idioma Recibo:</span>
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+              <span className="text-[10px] font-bold text-slate-600 flex items-center gap-1 px-1.5">
+                <Globe className="w-3 h-3 text-emerald-600" />
+                <span>Idioma:</span>
               </span>
               <button
                 type="button"
                 onClick={() => handleSetReceiptLanguage('es')}
                 title="Generar recibos y WhatsApp en Español"
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                   receiptLanguage === 'es'
                     ? 'bg-blue-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>🇪🇸</span>
-                <span>Español</span>
+                <span>🇪🇸 ES</span>
               </button>
               <button
                 type="button"
                 onClick={() => handleSetReceiptLanguage('de')}
                 title="Abrechnungsbelege und WhatsApp auf Deutsch"
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                   receiptLanguage === 'de'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>🇩🇪</span>
-                <span>Alemán</span>
+                <span>🇩🇪 DE</span>
               </button>
             </div>
 
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-sm transition-colors cursor-pointer"
+              className="flex items-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3 h-3" />
               <span>Exportar Excel</span>
             </button>
           </div>
         </div>
 
         {/* PERIOD CONTROLS BAR: 15 Días vs 30 Días */}
-        <div className="mt-5 pt-4 border-t border-slate-100 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase text-slate-500 tracking-wider">
-                Período a Liquidar:
-              </span>
-            </div>
+        <div className="mt-2 pt-2 border-t border-slate-100 space-y-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase text-slate-500 tracking-wider">
+              Período a Liquidar:
+            </span>
 
             {/* Filter by employee frequency */}
-            <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs">
-              <span className="text-slate-400 font-semibold px-2 text-[11px]">Ver:</span>
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-xl text-xs">
+              <span className="text-slate-400 font-semibold px-1.5 text-[10px]">Ver:</span>
               <button
                 onClick={() => setFrequencyFilter('all')}
-                className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                className={`px-2 py-0.5 rounded-lg text-xs transition-colors cursor-pointer ${
                   frequencyFilter === 'all'
                     ? 'bg-white text-slate-900 font-bold shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -589,7 +580,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
               </button>
               <button
                 onClick={() => setFrequencyFilter('quincenal')}
-                className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                className={`px-2 py-0.5 rounded-lg text-xs transition-colors cursor-pointer ${
                   frequencyFilter === 'quincenal'
                     ? 'bg-purple-600 text-white font-bold shadow-2xs'
                     : 'text-slate-600 hover:text-purple-700'
@@ -599,7 +590,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
               </button>
               <button
                 onClick={() => setFrequencyFilter('mensual')}
-                className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                className={`px-2 py-0.5 rounded-lg text-xs transition-colors cursor-pointer ${
                   frequencyFilter === 'mensual'
                     ? 'bg-blue-600 text-white font-bold shadow-2xs'
                     : 'text-slate-600 hover:text-blue-700'
@@ -610,13 +601,12 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
             </div>
           </div>
 
-          {/* Quick Period Buttons: Quincena 1 (1-15), Quincena 2 (16-fin), Mes completo (30 días), Rango libre */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
-            {/* Option 1: 1a Quincena */}
+          {/* Quick Period Buttons: Compact */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => setSelectedPeriodType('quincenal_1')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl border text-left transition-all cursor-pointer ${
                 selectedPeriodType === 'quincenal_1'
                   ? 'bg-purple-50/90 border-purple-500 ring-2 ring-purple-500/20 shadow-xs'
                   : 'bg-white border-slate-200 hover:border-slate-300'
@@ -626,22 +616,17 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                 <span className={`text-xs font-black uppercase ${
                   selectedPeriodType === 'quincenal_1' ? 'text-purple-800' : 'text-slate-700'
                 }`}>
-                  1ª Quincena (15 días)
+                  1ª Quincena
                 </span>
-                {selectedPeriodType === 'quincenal_1' && (
-                  <Check className="w-4 h-4 text-purple-600" />
-                )}
+                {selectedPeriodType === 'quincenal_1' && <Check className="w-3.5 h-3.5 text-purple-600" />}
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Día 1 al 15 de {formatMonthSpanish(monthStr).split(' ')[0]}
-              </p>
+              <p className="text-[10px] text-slate-500 font-medium">1 al 15 de {formatMonthSpanish(monthStr).split(' ')[0]}</p>
             </button>
 
-            {/* Option 2: 2a Quincena */}
             <button
               type="button"
               onClick={() => setSelectedPeriodType('quincenal_2')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl border text-left transition-all cursor-pointer ${
                 selectedPeriodType === 'quincenal_2'
                   ? 'bg-purple-50/90 border-purple-500 ring-2 ring-purple-500/20 shadow-xs'
                   : 'bg-white border-slate-200 hover:border-slate-300'
@@ -651,22 +636,17 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                 <span className={`text-xs font-black uppercase ${
                   selectedPeriodType === 'quincenal_2' ? 'text-purple-800' : 'text-slate-700'
                 }`}>
-                  2ª Quincena ({defaultPresets[1].daysCount} días)
+                  2ª Quincena
                 </span>
-                {selectedPeriodType === 'quincenal_2' && (
-                  <Check className="w-4 h-4 text-purple-600" />
-                )}
+                {selectedPeriodType === 'quincenal_2' && <Check className="w-3.5 h-3.5 text-purple-600" />}
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Día 16 al {defaultPresets[1].endDate.slice(8)} de {formatMonthSpanish(monthStr).split(' ')[0]}
-              </p>
+              <p className="text-[10px] text-slate-500 font-medium">16 al {defaultPresets[1].endDate.slice(8)} de {formatMonthSpanish(monthStr).split(' ')[0]}</p>
             </button>
 
-            {/* Option 3: Mes completo (30 días) */}
             <button
               type="button"
               onClick={() => setSelectedPeriodType('mensual')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl border text-left transition-all cursor-pointer ${
                 selectedPeriodType === 'mensual'
                   ? 'bg-blue-50/90 border-blue-500 ring-2 ring-blue-500/20 shadow-xs'
                   : 'bg-white border-slate-200 hover:border-slate-300'
@@ -676,22 +656,17 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                 <span className={`text-xs font-black uppercase ${
                   selectedPeriodType === 'mensual' ? 'text-blue-800' : 'text-slate-700'
                 }`}>
-                  Mes Completo (30 días)
+                  Mes Completo
                 </span>
-                {selectedPeriodType === 'mensual' && (
-                  <Check className="w-4 h-4 text-blue-600" />
-                )}
+                {selectedPeriodType === 'mensual' && <Check className="w-3.5 h-3.5 text-blue-600" />}
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Todo el mes ({defaultPresets[2].daysCount} días calendario)
-              </p>
+              <p className="text-[10px] text-slate-500 font-medium">{defaultPresets[2].daysCount} días calendario</p>
             </button>
 
-            {/* Option 4: Custom 15-day range */}
             <button
               type="button"
               onClick={() => setSelectedPeriodType('custom')}
-              className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-xl border text-left transition-all cursor-pointer ${
                 selectedPeriodType === 'custom'
                   ? 'bg-amber-50/90 border-amber-500 ring-2 ring-amber-500/20 shadow-xs'
                   : 'bg-white border-slate-200 hover:border-slate-300'
@@ -701,60 +676,56 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                 <span className={`text-xs font-black uppercase ${
                   selectedPeriodType === 'custom' ? 'text-amber-800' : 'text-slate-700'
                 }`}>
-                  Rango Personalizado
+                  Personalizado
                 </span>
-                {selectedPeriodType === 'custom' && (
-                  <Check className="w-4 h-4 text-amber-600" />
-                )}
+                {selectedPeriodType === 'custom' && <Check className="w-3.5 h-3.5 text-amber-600" />}
               </div>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Elegir 15 días en calendario
-              </p>
+              <p className="text-[10px] text-slate-500 font-medium">Rango en calendario</p>
             </button>
           </div>
 
           {/* If Custom Date Range is selected, show calendar date pickers */}
           {selectedPeriodType === 'custom' && (
-            <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200 flex flex-wrap items-center gap-4 animate-in fade-in duration-150">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-amber-600" />
-                <span className="text-xs font-bold text-amber-900">Desde:</span>
+            <div className="p-2.5 bg-amber-50/50 rounded-xl border border-amber-200 flex flex-wrap items-center gap-3 animate-in fade-in duration-150 text-xs">
+              <div className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-amber-600" />
+                <span className="font-bold text-amber-900">Desde:</span>
                 <input
                   type="date"
                   value={customStart}
                   onChange={(e) => handleSetCustom15Days(e.target.value)}
-                  className="px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="px-2 py-0.5 bg-white border border-amber-300 rounded-lg font-bold text-slate-800"
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-amber-900">Hasta:</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-bold text-amber-900">Hasta:</span>
                 <input
                   type="date"
                   value={customEnd}
                   onChange={(e) => setCustomEnd(e.target.value)}
-                  className="px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  className="px-2 py-0.5 bg-white border border-amber-300 rounded-lg font-bold text-slate-800"
                 />
               </div>
 
               <button
                 type="button"
                 onClick={() => handleSetCustom15Days(customStart)}
-                className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
+                className="px-2.5 py-0.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg shadow-2xs transition-colors cursor-pointer"
               >
-                Fijar exactamente a 15 días
+                15 días exactos
               </button>
 
-              <span className="text-xs text-amber-700 font-semibold">
-                (Total: {periodDays.length} días seleccionados)
+              <span className="text-[11px] text-amber-700 font-semibold">
+                ({periodDays.length} días)
               </span>
             </div>
           )}
 
           {/* Active Period Alert Banner */}
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="font-bold text-slate-700">
                 Liquidando actualmente:
               </span>

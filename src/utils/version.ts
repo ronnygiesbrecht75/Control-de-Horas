@@ -1,5 +1,5 @@
-export const APP_VERSION = '1.0.4';
-export const APP_BUILD_DATE = '2026-08-31';
+export const APP_VERSION = '1.3.0';
+export const APP_BUILD_DATE = '2026-10-17';
 
 export interface VersionInfo {
   version: string;

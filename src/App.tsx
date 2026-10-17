@@ -21,9 +21,7 @@ import {
   loadCurrencyFromStorage,
   saveCurrencyToStorage,
   resetAllStorageToDefaults, 
-  DEFAULT_EMPLOYEES, 
-  generateInitialRecords, 
-  INITIAL_ADJUSTMENTS 
+  loadSampleDemoData
 } from './data/mockData';
 import { 
   getTodayDateStr, 
@@ -105,11 +103,13 @@ export default function App() {
 
     activeEmps.forEach(emp => {
       const id = `${emp.id}_${dateStr}`;
-      const entry1 = emp.defaultEntry1 || '08:00';
-      const exit1 = emp.defaultExit1 || '12:00';
-      const entry2 = emp.defaultEntry2 || '14:00';
-      const exit2 = emp.defaultExit2 || '18:00';
-      const totalHours = calculateDailyTotalHours(entry1, exit1, entry2, exit2);
+      const entry1 = emp.defaultEntry1 || '07:00';
+      const exit1 = emp.defaultExit1 || '11:30';
+      const entry2 = emp.defaultEntry2 || '12:30';
+      const exit2 = emp.defaultExit2 || '17:30';
+      const existing = newRecords.find(r => r.id === id || (r.employeeId === emp.id && r.dateStr === dateStr));
+      const intermediateExits = existing?.intermediateExits || [];
+      const totalHours = calculateDailyTotalHours(entry1, exit1, entry2, exit2, intermediateExits);
 
       const idx = newRecords.findIndex(r => r.id === id || (r.employeeId === emp.id && r.dateStr === dateStr));
       const updated: DailyTimeRecord = {
@@ -120,6 +120,7 @@ export default function App() {
         exit1,
         entry2,
         exit2,
+        intermediateExits,
         isAbsent: false,
         totalHours
       };
@@ -171,7 +172,12 @@ export default function App() {
   // Settlement adjustments handler
   const handleUpdateAdjustment = (updatedAdj: MonthlySettlementAdjustment) => {
     setAdjustments(prev => {
-      const idx = prev.findIndex(a => a.id === updatedAdj.id || (a.employeeId === updatedAdj.employeeId && a.monthStr === updatedAdj.monthStr));
+      const targetPeriodKey = updatedAdj.periodKey || updatedAdj.monthStr;
+      const idx = prev.findIndex(a => {
+        if (a.id === updatedAdj.id) return true;
+        const aPeriodKey = a.periodKey || a.monthStr;
+        return a.employeeId === updatedAdj.employeeId && aPeriodKey === targetPeriodKey;
+      });
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = updatedAdj;
@@ -181,16 +187,25 @@ export default function App() {
     });
   };
 
-  // Reset Demo data
-  const handleResetDemo = () => {
+  // Clear all data (clean slate)
+  const handleClearAllData = () => {
     resetAllStorageToDefaults();
-    setEmployees(DEFAULT_EMPLOYEES);
-    setRecords(generateInitialRecords());
-    setAdjustments(INITIAL_ADJUSTMENTS);
+    setEmployees([]);
+    setRecords([]);
+    setAdjustments([]);
+    setSelectedEmployeeId('');
     setDateStr(getTodayDateStr());
     setMonthStr(getCurrentMonthStr());
-    if (DEFAULT_EMPLOYEES.length > 0) {
-      setSelectedEmployeeId(DEFAULT_EMPLOYEES[0].id);
+  };
+
+  // Load sample demo data
+  const handleLoadDemoData = () => {
+    const demo = loadSampleDemoData();
+    setEmployees(demo.employees);
+    setRecords(demo.records);
+    setAdjustments(demo.adjustments);
+    if (demo.employees.length > 0) {
+      setSelectedEmployeeId(demo.employees[0].id);
     }
   };
 
@@ -229,6 +244,9 @@ export default function App() {
       if (data.currency) {
         setCurrency(data.currency);
       }
+      if (data.employees.length > 0) {
+        setSelectedEmployeeId(data.employees[0].id);
+      }
     } else {
       throw new Error('Invalid JSON format');
     }
@@ -245,7 +263,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         currency={currency}
         setCurrency={setCurrency}
-        onResetDemo={handleResetDemo}
+        onClearAllData={handleClearAllData}
         onExportData={handleExportData}
         onImportData={handleImportData}
         currentUser={currentUser}
@@ -254,8 +272,8 @@ export default function App() {
 
       <main className="flex-1 w-full max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-7">
         <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {/* Left Column Navigation Options */}
-          <aside className="w-full lg:w-64 xl:w-72 shrink-0 lg:sticky lg:top-24">
+          {/* Left Column Navigation Options - 15% wider as requested */}
+          <aside className="w-full lg:w-[295px] xl:w-[330px] shrink-0 lg:sticky lg:top-20">
             <SidebarNav
               activeTab={activeTab}
               setActiveTab={setActiveTab}
@@ -298,6 +316,7 @@ export default function App() {
                 currency={currency}
                 onUpdateEmployeeRate={handleUpdateEmployeeRate}
                 onUpdateAdjustment={handleUpdateAdjustment}
+                onUpdateEmployee={handleUpdateEmployee}
               />
             )}
 

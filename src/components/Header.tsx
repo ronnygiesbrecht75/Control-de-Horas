@@ -16,7 +16,9 @@ import {
   User,
   RefreshCw,
   Sparkles,
-  ArrowUpCircle
+  ArrowUpCircle,
+  Globe,
+  Check
 } from 'lucide-react';
 import { formatMonthSpanish, createWhatsAppShareUrl } from '../utils/timeUtils';
 import { loadEmployeesFromStorage } from '../data/mockData';
@@ -27,7 +29,7 @@ interface HeaderProps {
   setActiveTab: (tab: ActiveTab) => void;
   currency: CurrencyConfig;
   setCurrency: (c: CurrencyConfig) => void;
-  onResetDemo: () => void;
+  onClearAllData: () => void;
   onExportData: () => void;
   onImportData: (jsonStr: string) => void;
   currentUser?: string;
@@ -39,7 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveTab,
   currency,
   setCurrency,
-  onResetDemo,
+  onClearAllData,
   onExportData,
   onImportData,
   currentUser,
@@ -53,10 +55,24 @@ export const Header: React.FC<HeaderProps> = ({
   const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'latest' | 'available'>('idle');
   const [newVersionFound, setNewVersionFound] = useState<string>('');
 
-  // WhatsApp modal state
+  // WhatsApp modal state with Spanish & German support
   const [employeesList, setEmployeesList] = useState<Employee[]>([]);
   const [waEmpId, setWaEmpId] = useState<string>('');
   const [waMessage, setWaMessage] = useState<string>('');
+  const [waLanguage, setWaLanguage] = useState<'es' | 'de'>(() => {
+    try {
+      return (localStorage.getItem('receipt_language_pref') as 'es' | 'de') || 'es';
+    } catch {
+      return 'es';
+    }
+  });
+
+  const getGreetingMessage = (empName: string, lang: 'es' | 'de') => {
+    if (lang === 'de') {
+      return `Hallo ${empName}! Ich schreibe dir bezüglich der Arbeitszeiterfassung und Abrechnung für diesen Monat. Bei Fragen kannst du dich gerne melden!`;
+    }
+    return `¡Hola ${empName}! Te escribo para enviarte y arreglar el registro de tus horas de entrada y salida del mes. ¡Cualquier consulta me avisas!`;
+  };
 
   useEffect(() => {
     if (showWhatsAppModal) {
@@ -65,16 +81,27 @@ export const Header: React.FC<HeaderProps> = ({
       const firstEmp = emps[0];
       if (firstEmp && !waEmpId) {
         setWaEmpId(firstEmp.id);
-        setWaMessage(`¡Hola ${firstEmp.name}! Te escribo para enviarte y arreglar el registro de tus horas de entrada y salida del mes. ¡Cualquier consulta me avisas!`);
+        setWaMessage(getGreetingMessage(firstEmp.name, waLanguage));
       }
     }
-  }, [showWhatsAppModal]);
+  }, [showWhatsAppModal, waLanguage]);
 
   const handleEmpChange = (empId: string) => {
     setWaEmpId(empId);
     const sel = employeesList.find(e => e.id === empId);
     if (sel) {
-      setWaMessage(`¡Hola ${sel.name}! Te escribo para enviarte y arreglar el registro de tus horas de entrada y salida del mes. ¡Cualquier consulta me avisas!`);
+      setWaMessage(getGreetingMessage(sel.name, waLanguage));
+    }
+  };
+
+  const handleSetWaLanguage = (lang: 'es' | 'de') => {
+    setWaLanguage(lang);
+    try {
+      localStorage.setItem('receipt_language_pref', lang);
+    } catch {}
+    const sel = employeesList.find(e => e.id === waEmpId);
+    if (sel) {
+      setWaMessage(getGreetingMessage(sel.name, lang));
     }
   };
 
@@ -104,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-30">
+      <header className="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-40">
         <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo, title, and left-side WhatsApp button */}
@@ -237,31 +264,33 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
 
-              {/* Reset demo */}
-              <div className="bg-amber-50/70 p-4 rounded-xl border border-amber-200">
+              {/* Clear all data */}
+              <div className="bg-rose-50/70 p-4 rounded-xl border border-rose-200">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-sm font-semibold text-amber-900">Datos de Ejemplo Iniciales</h4>
-                    <p className="text-xs text-amber-700 mt-0.5">
-                      Restaura 3 empleados de demostración con horas de este mes.
+                    <h4 className="text-sm font-semibold text-rose-900">Limpiar Todo el Sistema</h4>
+                    <p className="text-xs text-rose-700 mt-0.5">
+                      Borra todos los empleados, horas y registros para empezar totalmente en limpio.
                     </p>
                   </div>
                   <button
                     onClick={() => {
-                      onResetDemo();
-                      setResetSuccess(true);
-                      setTimeout(() => setResetSuccess(false), 2500);
+                      if (window.confirm('¿Está seguro de que desea borrar todos los empleados y horas? Esta acción dejará la aplicación en blanco.')) {
+                        onClearAllData();
+                        setResetSuccess(true);
+                        setTimeout(() => setResetSuccess(false), 2500);
+                      }
                     }}
-                    className="flex items-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Restablecer</span>
+                    <span>Limpiar Todo</span>
                   </button>
                 </div>
                 {resetSuccess && (
                   <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold mt-2">
                     <CheckCircle2 className="w-4 h-4" />
-                    <span>¡Datos restablecidos con éxito!</span>
+                    <span>¡Sistema reiniciado en limpio con éxito!</span>
                   </div>
                 )}
               </div>
@@ -423,6 +452,47 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             <div className="mt-4 space-y-4">
+              {/* Language Selector: Español vs Alemán */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Idioma del Mensaje / Sprache:</span>
+                  </label>
+                  <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    {waLanguage === 'es' ? '🇪🇸 Español' : '🇩🇪 Deutsch (Alemán)'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSetWaLanguage('es')}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      waLanguage === 'es'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>🇪🇸</span>
+                    <span>Español</span>
+                    {waLanguage === 'es' && <Check className="w-3.5 h-3.5 ml-1" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetWaLanguage('de')}
+                    className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                      waLanguage === 'de'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>🇩🇪</span>
+                    <span>Alemán (Deutsch)</span>
+                    {waLanguage === 'de' && <Check className="w-3.5 h-3.5 ml-1" />}
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                   Seleccionar Empleado

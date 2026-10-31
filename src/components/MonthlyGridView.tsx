@@ -278,6 +278,7 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
   let totalDeductedExitsHours = 0;
   let totalIntermediateExitsCount = 0;
   let totalProductDeductionsPeriod = 0;
+  const periodProductDeductions: { dateStr: string; description: string; amount: number }[] = [];
   let workedDaysCount = 0;
   let absentDaysCount = 0;
   let estimatedGrossPay = 0;
@@ -287,7 +288,13 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
     const rec = getRecordForDate(dateStr);
     if (rec.productDeductions && rec.productDeductions.length > 0) {
       rec.productDeductions.forEach(p => {
-        totalProductDeductionsPeriod += Number(p.amount) || 0;
+        const amt = Number(p.amount) || 0;
+        totalProductDeductionsPeriod += amt;
+        periodProductDeductions.push({
+          dateStr,
+          description: p.description || 'Producto',
+          amount: amt
+        });
       });
     }
 
@@ -385,6 +392,12 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
         .map(r => `${r.hours.toFixed(2)}h a ${formatCurrencyWithSymbol(r.rate, currency.symbol, currency.code)} = ${formatCurrencyWithSymbol(r.subtotal, currency.symbol, currency.code)}`)
         .join(' + ');
       lines.push(`Desglose por Aumento:;"${breakdownText}"`);
+    }
+    if (totalProductDeductionsPeriod > 0) {
+      lines.push(`Total Retiro de Productos:;"-${formatCurrencyWithSymbol(totalProductDeductionsPeriod, currency.symbol, currency.code)}"`);
+      periodProductDeductions.forEach(p => {
+        lines.push(`  Retiro Producto:;"${formatDateShortSpanish(p.dateStr)} - ${p.description}: -${formatCurrencyWithSymbol(p.amount, currency.symbol, currency.code)}"`);
+      });
     }
     lines.push(`Total Estimado a Cobrar / Liquidar:;"${formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}"`);
 
@@ -883,30 +896,13 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                     {/* Tarifa / Subtotal del Día */}
                     <td className="py-1 px-2.5 sm:px-3 text-right whitespace-nowrap">
                       {hasHours ? (
-                        <div className="leading-tight">
+                        <div className="flex items-center justify-end gap-2 leading-tight">
+                          <span className="text-[10px] text-slate-500 font-semibold">
+                            {formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h
+                          </span>
                           <span className="font-extrabold text-slate-900 text-xs">
                             {formatCurrencyWithSymbol(daySubtotal, currency.symbol, currency.code)}
                           </span>
-                          <p className="text-[9px] text-slate-500 font-semibold leading-none mt-0.5">
-                            {formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h
-                          </p>
-                          {rec.productDeductions && rec.productDeductions.length > 0 && (
-                            <div className="mt-0.5 space-y-0.5">
-                              {rec.productDeductions.map((p, pIdx) => (
-                                <span key={pIdx} className="block text-[8.5px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0 rounded">
-                                  🛒 {p.description || 'Producto'}: -{formatCurrencyWithSymbol(p.amount || 0, currency.symbol, currency.code)}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ) : rec.productDeductions && rec.productDeductions.length > 0 ? (
-                        <div className="leading-tight">
-                          {rec.productDeductions.map((p, pIdx) => (
-                            <span key={pIdx} className="block text-[8.5px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0 rounded">
-                              🛒 {p.description || 'Producto'}: -{formatCurrencyWithSymbol(p.amount || 0, currency.symbol, currency.code)}
-                            </span>
-                          ))}
                         </div>
                       ) : (
                         <span className="text-slate-300 text-xs leading-none">-</span>
@@ -942,6 +938,57 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                 );
               })}
             </tbody>
+            <tfoot>
+              {periodProductDeductions.length > 0 && (
+                <tr className="bg-rose-50/90 border-t-2 border-rose-300">
+                  <td colSpan={2} className="py-2.5 px-3 align-middle">
+                    <div className="flex items-center gap-1.5 font-bold text-rose-900 text-xs">
+                      <span>🛒 Retiro de Productos:</span>
+                      <span className="text-[10px] text-rose-600 font-medium">
+                        ({periodProductDeductions.length} {periodProductDeductions.length === 1 ? 'retiro' : 'retiros'})
+                      </span>
+                    </div>
+                  </td>
+                  <td colSpan={3} className="py-2.5 px-3 align-middle">
+                    <div className="flex flex-wrap gap-1.5">
+                      {periodProductDeductions.map((prod, pIdx) => (
+                        <span
+                          key={pIdx}
+                          className="inline-flex items-center gap-1 bg-white border border-rose-200 text-rose-800 text-[11px] px-2 py-0.5 rounded-md shadow-2xs font-semibold"
+                        >
+                          <span className="text-rose-500 font-bold text-[10px]">{formatDateShortSpanish(prod.dateStr)}:</span>
+                          <span>{prod.description}</span>
+                          <span className="text-rose-700 font-bold">(-{formatCurrencyWithSymbol(prod.amount, currency.symbol, currency.code)})</span>
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="py-2.5 px-3 text-right whitespace-nowrap align-middle">
+                    <div className="text-[10px] text-rose-600 font-semibold leading-none">Total Retiros</div>
+                    <div className="font-black text-rose-700 text-xs mt-0.5">
+                      -{formatCurrencyWithSymbol(totalProductDeductionsPeriod, currency.symbol, currency.code)}
+                    </div>
+                  </td>
+                  <td></td>
+                </tr>
+              )}
+              <tr className="bg-slate-100 border-t border-slate-300 font-extrabold text-slate-800 text-xs">
+                <td colSpan={2} className="py-2.5 px-3 uppercase tracking-wider text-[11px]">
+                  Totales del Período ({workedDaysCount} días):
+                </td>
+                <td className="py-2.5 px-3 text-amber-800 font-bold text-[11px]">
+                  {totalDeductedExitsHours > 0 ? `-${totalDeductedExitsHours.toFixed(2)} h salidas` : '-'}
+                </td>
+                <td className="py-2.5 px-3"></td>
+                <td className="py-2.5 px-3 text-center text-blue-800 font-black text-xs">
+                  {totalPeriodHours.toFixed(2)} h
+                </td>
+                <td className="py-2.5 px-3 text-right font-black text-emerald-800 text-xs whitespace-nowrap">
+                  {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
 
@@ -1549,23 +1596,14 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                           </td>
                           <td className={`${rowPadClass} text-right whitespace-nowrap border-r border-slate-200`}>
                             {dayHours > 0 ? (
-                              <div>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span className="text-[8px] text-slate-500 font-medium">
+                                  {formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h
+                                </span>
                                 <span className="font-extrabold text-slate-900">
                                   {formatCurrencyWithSymbol(daySubtotal, currency.symbol, currency.code)}
                                 </span>
-                                <span className="text-[8px] text-slate-500 block leading-none">
-                                  ({formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h)
-                                </span>
-                                {rec.productDeductions && rec.productDeductions.length > 0 && (
-                                  <span className="text-[7.5px] text-rose-700 font-bold block leading-none mt-0.5">
-                                    🛒 -{formatCurrencyWithSymbol(rec.productDeductions.reduce((s, p) => s + (Number(p.amount) || 0), 0), currency.symbol, currency.code)}
-                                  </span>
-                                )}
                               </div>
-                            ) : rec.productDeductions && rec.productDeductions.length > 0 ? (
-                              <span className="text-[7.5px] text-rose-700 font-bold block leading-none">
-                                🛒 -{formatCurrencyWithSymbol(rec.productDeductions.reduce((s, p) => s + (Number(p.amount) || 0), 0), currency.symbol, currency.code)}
-                              </span>
                             ) : (
                               '--'
                             )}
@@ -1584,6 +1622,28 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                     })}
                   </tbody>
                   <tfoot>
+                    {periodProductDeductions.length > 0 && (
+                      <tr className="bg-rose-50 text-rose-900 border-t border-rose-300 text-[9px] font-bold">
+                        <td colSpan={2} className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} border-r border-rose-200 text-rose-800 font-black`}>
+                          🛒 RETIRO DE PRODUCTOS:
+                        </td>
+                        <td colSpan={3} className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} border-r border-rose-200 text-rose-700`}>
+                          <div className="flex flex-wrap gap-1">
+                            {periodProductDeductions.map((prod, pIdx) => (
+                              <span key={pIdx} className="bg-white px-1 py-0.5 rounded border border-rose-200">
+                                {formatDateShortSpanish(prod.dateStr)}: {prod.description} (-{formatCurrencyWithSymbol(prod.amount, currency.symbol, currency.code)})
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} text-right font-black text-rose-700 border-r border-rose-200 whitespace-nowrap`}>
+                          -{formatCurrencyWithSymbol(totalProductDeductionsPeriod, currency.symbol, currency.code)}
+                        </td>
+                        <td className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} text-[8px] text-rose-600 italic`}>
+                          Descontado del total
+                        </td>
+                      </tr>
+                    )}
                     <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400 text-[10px]">
                       <td colSpan={2} className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} uppercase font-black text-slate-800 border-r border-slate-300`}>
                         TOTALES ({displayedDays.length} DÍAS):

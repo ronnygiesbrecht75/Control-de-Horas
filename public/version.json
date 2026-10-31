@@ -1,6 +1,6 @@
 {
-  "version": "1.7",
-  "buildDate": "2026-10-31T07:35:00Z",
-  "description": "Versión 1.7: Registro de retiros de productos con monto y descripción en Carga Diaria con descuento automático del salario a cobrar, rango de fechas en Planilla Mensual, exportación de PDF de 1 hoja A4 con KPIs, y pestaña de Ex Empleados con tarifas y aumentos."
+  "version": "1.8",
+  "buildDate": "2026-10-31T08:00:00Z",
+  "description": "Versión 1.8: Retiro de productos en fila dedicada al final de la planilla (no en filas de horas), formato de Tarifa y Subtotal horizontal en una sola línea, y soporte de empaquetado .EXE optimizado."
 }
 

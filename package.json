@@ -4,7 +4,7 @@
   "description": "Sistema de Control de Horas y Liquidacion de Sueldos",
   "author": "Ronny Giesbrecht",
   "private": true,
-  "version": "1.7",
+  "version": "1.8.0",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {

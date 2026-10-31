@@ -30,6 +30,19 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Ensure SemVer in package.json for Electron Builder
+        shell: bash
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            if (/^\d+\.\d+$/.test(pkg.version)) {
+              pkg.version = pkg.version + '.0';
+              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+              console.log('SemVer normalized for electron-builder:', pkg.version);
+            }
+          "
+
       - name: Build Web & Desktop .EXE
         run: npm run build:electron
         env:
@@ -51,7 +64,7 @@ jobs:
             TAG_NAME="${{ github.ref_name }}"
             RELEASE_NAME="Release $TAG_NAME"
           else
-            VERSION=$(node -p "require('./package.json').version")
+            VERSION=$(node -p "require('./package.json').version.replace(/\\.0$/, '')")
             TAG_NAME="v$VERSION"
             RELEASE_NAME="Release v$VERSION (Build #${{ github.run_number }})"
           fi

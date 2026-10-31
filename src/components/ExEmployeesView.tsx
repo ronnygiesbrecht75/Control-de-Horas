@@ -991,13 +991,13 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                         {/* Tarifa / Subtotal */}
                         <td className="py-2 px-3 text-right whitespace-nowrap">
                           {hasHours ? (
-                            <div className="leading-tight">
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="text-[10px] text-slate-500 font-semibold">
+                                {formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h
+                              </span>
                               <span className="font-extrabold text-slate-900 text-xs">
                                 {formatCurrencyWithSymbol(daySubtotal, currency.symbol, currency.code)}
                               </span>
-                              <p className="text-[9px] text-slate-500 font-semibold leading-none mt-0.5">
-                                {formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h
-                              </p>
                             </div>
                           ) : (
                             <span className="text-slate-300 text-xs leading-none">-</span>
@@ -1457,12 +1457,12 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                           </td>
                           <td className="py-1 px-1.5 text-right whitespace-nowrap border-r border-slate-200">
                             {hasHours ? (
-                              <div>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span className="text-[8px] text-slate-500 font-medium">
+                                  {formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h
+                                </span>
                                 <span className="font-extrabold text-slate-900">
                                   {formatCurrencyWithSymbol(daySubtotal, currency.symbol, currency.code)}
-                                </span>
-                                <span className="block text-[8px] text-slate-500 leading-none">
-                                  ({formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h)
                                 </span>
                               </div>
                             ) : (

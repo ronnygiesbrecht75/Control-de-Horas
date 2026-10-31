@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Employee, DailyTimeRecord, CurrencyConfig, IntermediateExit } from '../types';
+import { Employee, DailyTimeRecord, CurrencyConfig, IntermediateExit, HourlyRateEntry } from '../types';
 import { 
   Users, 
   UserX, 
@@ -22,7 +22,11 @@ import {
   X, 
   Briefcase,
   Layers,
-  ArrowRight
+  ArrowRight,
+  TrendingUp,
+  History,
+  ArrowUpRight,
+  Plus
 } from 'lucide-react';
 import { 
   formatMonthSpanish, 
@@ -34,7 +38,9 @@ import {
   formatDateShortSpanish,
   isSunday,
   calculateTenure,
-  getTodayDateStr
+  getTodayDateStr,
+  getEmployeeRateForDate,
+  calculateIntermediateExitsHours
 } from '../utils/timeUtils';
 
 interface ExEmployeesViewProps {
@@ -93,6 +99,13 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
   const [showPDFModal, setShowPDFModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string>('');
 
+  // Rate history modal state
+  const [showRateHistoryModal, setShowRateHistoryModal] = useState<boolean>(false);
+  const [rateModalEmployee, setRateModalEmployee] = useState<Employee | null>(null);
+  const [modalNewRate, setModalNewRate] = useState<number>(18000);
+  const [modalEffectiveDate, setModalEffectiveDate] = useState<string>(getTodayDateStr());
+  const [modalRateNotes, setModalRateNotes] = useState<string>('Aumento salarial');
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 4000);
@@ -148,9 +161,12 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
   };
 
   let totalMonthHours = 0;
+  let totalDeductedExitsHours = 0;
   let workedDaysCount = 0;
   let absentDaysCount = 0;
   let totalIntermediateExitsCount = 0;
+  let estimatedPay = 0;
+  const ratesBreakdown: Record<number, { rate: number; hours: number; subtotal: number }> = {};
 
   allDays.forEach(dateStr => {
     const rec = getRecordForDate(dateStr);
@@ -160,15 +176,101 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
       if (rec.totalHours && rec.totalHours > 0) {
         totalMonthHours += rec.totalHours;
         workedDaysCount++;
+        const dayRate = getEmployeeRateForDate(currentExEmp, dateStr);
+        const daySubtotal = rec.totalHours * dayRate;
+        estimatedPay += daySubtotal;
+
+        if (!ratesBreakdown[dayRate]) {
+          ratesBreakdown[dayRate] = { rate: dayRate, hours: 0, subtotal: 0 };
+        }
+        ratesBreakdown[dayRate].hours += rec.totalHours;
+        ratesBreakdown[dayRate].subtotal += daySubtotal;
       }
       if (rec.intermediateExits && rec.intermediateExits.length > 0) {
         totalIntermediateExitsCount += rec.intermediateExits.length;
+        const deducted = calculateIntermediateExitsHours(rec.intermediateExits);
+        totalDeductedExitsHours += deducted;
       }
     }
   });
 
+  const rateBreakdownList = Object.values(ratesBreakdown).sort((a, b) => a.rate - b.rate);
+  const hasMultipleRatesInMonth = rateBreakdownList.length > 1;
+
   const hourlyRate = currentExEmp?.hourlyRate || 0;
-  const estimatedPay = totalMonthHours * hourlyRate;
+
+  // Rate history modal helpers
+  const handleOpenRateHistory = (emp: Employee) => {
+    setRateModalEmployee(emp);
+    setModalNewRate(emp.hourlyRate || 18000);
+    setModalEffectiveDate(getTodayDateStr());
+    setModalRateNotes('Aumento salarial');
+    setShowRateHistoryModal(true);
+  };
+
+  const handleAddRateToHistory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rateModalEmployee) return;
+    if (modalNewRate <= 0) {
+      alert('Por favor ingrese un monto válido para la tarifa horaria.');
+      return;
+    }
+    if (!modalEffectiveDate) {
+      alert('Por favor seleccione la fecha desde la cual rige la nueva tarifa.');
+      return;
+    }
+
+    const currentHistory: HourlyRateEntry[] = rateModalEmployee.rateHistory && rateModalEmployee.rateHistory.length > 0
+      ? [...rateModalEmployee.rateHistory]
+      : [
+          {
+            effectiveDate: rateModalEmployee.startDate || '2020-01-01',
+            rate: rateModalEmployee.hourlyRate || 18000,
+            notes: 'Tarifa inicial'
+          }
+        ];
+
+    const updatedHistory = [
+      ...currentHistory.filter(h => h.effectiveDate !== modalEffectiveDate),
+      {
+        effectiveDate: modalEffectiveDate,
+        rate: modalNewRate,
+        notes: modalRateNotes.trim() || 'Aumento salarial'
+      }
+    ].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
+
+    const latestRate = updatedHistory[updatedHistory.length - 1].rate;
+
+    const updatedEmp: Employee = {
+      ...rateModalEmployee,
+      hourlyRate: latestRate,
+      rateHistory: updatedHistory
+    };
+
+    onUpdateEmployee(updatedEmp);
+    setRateModalEmployee(updatedEmp);
+    setModalRateNotes('');
+    showToast(`Historial de tarifas actualizado para ${rateModalEmployee.name}.`);
+  };
+
+  const handleDeleteRateFromHistory = (indexToDelete: number) => {
+    if (!rateModalEmployee || !rateModalEmployee.rateHistory) return;
+    const history = [...rateModalEmployee.rateHistory];
+    if (history.length <= 1) {
+      alert('Debe quedar al menos una tarifa registrada en el historial.');
+      return;
+    }
+    history.splice(indexToDelete, 1);
+    const latestRate = history[history.length - 1].rate;
+    const updatedEmp: Employee = {
+      ...rateModalEmployee,
+      hourlyRate: latestRate,
+      rateHistory: history
+    };
+    onUpdateEmployee(updatedEmp);
+    setRateModalEmployee(updatedEmp);
+    showToast('Tarifa eliminada del historial.');
+  };
 
   // Month navigation helpers
   const handlePrevMonth = () => {
@@ -238,10 +340,14 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
       lines.push(`Motivo de Salida:;"${currentExEmp.exitReason.replace(/"/g, '""')}"`);
     }
     lines.push(`Mes / Periodo:;"${formatMonthSpanish(monthStr)}"`);
-    lines.push(`Tarifa por hora:;"${formatCurrencyWithSymbol(currentExEmp.hourlyRate, currency.symbol, currency.code)}/h"`);
+    if (hasMultipleRatesInMonth) {
+      lines.push(`Tarifas aplicadas en el mes:;"${rateBreakdownList.map(r => `${formatCurrencyWithSymbol(r.rate, currency.symbol, currency.code)}/h (${r.hours.toFixed(1)}h)`).join(' + ')}"`);
+    } else {
+      lines.push(`Tarifa por hora:;"${formatCurrencyWithSymbol(currentExEmp.hourlyRate, currency.symbol, currency.code)}/h"`);
+    }
     lines.push(``);
 
-    lines.push(`Fecha;Día;Turno 1 Entrada;Turno 1 Salida;Turno 2 Entrada;Turno 2 Salida;Salidas Intermedias;Total Horas;Estado;Observaciones`);
+    lines.push(`Fecha;Día;Turno 1 Entrada;Turno 1 Salida;Turno 2 Entrada;Turno 2 Salida;Salidas Intermedias;Total Horas;Tarifa Aplicada;Subtotal Día;Estado;Observaciones`);
 
     allDays.forEach(dateStr => {
       const rec = getRecordForDate(dateStr);
@@ -257,13 +363,21 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
       const obs = (rec.notes || '').replace(/"/g, '""');
       const dayName = formatDateShortSpanish(dateStr);
 
-      lines.push(`${rec.dateStr};${dayName};${e1};${s1};${e2};${s2};${exitsStr};${totalH};${estado};"${obs}"`);
+      const dayRate = getEmployeeRateForDate(currentExEmp, dateStr);
+      const daySubtotal = (rec.totalHours || 0) * dayRate;
+      const rateStr = formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code);
+      const subtotalStr = (rec.totalHours || 0) > 0 ? formatCurrencyWithSymbol(daySubtotal, currency.symbol, currency.code) : '-';
+
+      lines.push(`${rec.dateStr};${dayName};${e1};${s1};${e2};${s2};${exitsStr};${totalH};"${rateStr}";"${subtotalStr}";${estado};"${obs}"`);
     });
 
     lines.push(``);
     lines.push(`RESUMEN DEL MES`);
     lines.push(`Total Horas Trabajadas:;${totalMonthHours.toFixed(2).replace('.', ',')} horas`);
     lines.push(`Días con Asistencia:;${workedDaysCount} días`);
+    if (hasMultipleRatesInMonth) {
+      lines.push(`Desglose de Tarifas:;"${rateBreakdownList.map(r => `${r.hours.toFixed(2)}h a ${formatCurrencyWithSymbol(r.rate, currency.symbol, currency.code)} = ${formatCurrencyWithSymbol(r.subtotal, currency.symbol, currency.code)}`).join(' | ')}"`);
+    }
     lines.push(`Total Estimado a Liquidar:;"${formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}"`);
 
     const csvContent = '\uFEFF' + lines.join('\r\n');
@@ -511,9 +625,19 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                           <DollarSign className="w-3.5 h-3.5 text-orange-600" />
                           <span>Última tarifa:</span>
                         </span>
-                        <span className="font-bold text-orange-700">
-                          {formatCurrencyWithSymbol(emp.hourlyRate, currency.symbol, currency.code)} / h
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-orange-700">
+                            {formatCurrencyWithSymbol(emp.hourlyRate, currency.symbol, currency.code)} / h
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRateHistory(emp)}
+                            title="Ver historial de cambios de salario"
+                            className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                          >
+                            <TrendingUp className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
                       {emp.phone && (
@@ -605,8 +729,16 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                       Salida: <strong>{currentExEmp.endDate ? formatDateDisplay(currentExEmp.endDate) : 'Retirado'}</strong>
                     </span>
                     <button
+                      onClick={() => currentExEmp && handleOpenRateHistory(currentExEmp)}
+                      className="ml-1 inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg cursor-pointer transition-colors border border-blue-200 shadow-2xs"
+                      title="Ver y registrar aumentos o historial de tarifas del empleado"
+                    >
+                      <TrendingUp className="w-3 h-3 text-blue-600" />
+                      <span>Historial Salarial</span>
+                    </button>
+                    <button
                       onClick={() => currentExEmp && handleReactivate(currentExEmp)}
-                      className="ml-2 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg cursor-pointer transition-colors"
+                      className="ml-1 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg cursor-pointer transition-colors"
                     >
                       <RotateCcw className="w-3 h-3" />
                       <span>Reactivar</span>
@@ -645,6 +777,17 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                   onChange={(e) => setMonthStr(e.target.value)}
                   className="bg-white border border-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-1.5 rounded-xl cursor-pointer"
                 />
+
+                {/* Historial de Salarios button in toolbar */}
+                <button
+                  onClick={() => currentExEmp && handleOpenRateHistory(currentExEmp)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold rounded-xl shadow-xs transition-colors cursor-pointer"
+                  title="Ver historial cronológico de cambios de salario"
+                >
+                  <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="hidden sm:inline">Historial Salarios</span>
+                  <span className="sm:hidden">Tarifas</span>
+                </button>
 
                 {/* Generar Excel */}
                 <button
@@ -695,14 +838,34 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
               </div>
 
               <div className="bg-white p-3.5 rounded-2xl shadow-xs border border-slate-200">
-                <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  Tarifa Histórica
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Tarifa por Hora
+                  </span>
+                  {hasMultipleRatesInMonth ? (
+                    <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">
+                      Escalonada
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => currentExEmp && handleOpenRateHistory(currentExEmp)}
+                      className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <History className="w-3 h-3" />
+                      <span>Historial</span>
+                    </button>
+                  )}
+                </div>
                 <span className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 block">
-                  {formatCurrencyWithSymbol(hourlyRate, currency.symbol, currency.code)}
+                  {hasMultipleRatesInMonth
+                    ? `${formatCurrencyWithSymbol(rateBreakdownList[0].rate, currency.symbol, currency.code)} → ${formatCurrencyWithSymbol(rateBreakdownList[rateBreakdownList.length - 1].rate, currency.symbol, currency.code)}`
+                    : formatCurrencyWithSymbol(hourlyRate, currency.symbol, currency.code)}
                 </span>
-                <span className="text-[11px] text-slate-500">
-                  por hora trabajada
+                <span className="text-[11px] text-slate-500 truncate block">
+                  {hasMultipleRatesInMonth
+                    ? `${rateBreakdownList.length} tarifas en el mes`
+                    : 'por hora trabajada'}
                 </span>
               </div>
 
@@ -713,8 +876,10 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                 <span className="text-xl sm:text-2xl font-black mt-0.5 block">
                   {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
                 </span>
-                <span className="text-[11px] text-blue-100">
-                  Planilla histórica
+                <span className="text-[11px] text-blue-100 truncate block">
+                  {hasMultipleRatesInMonth
+                    ? rateBreakdownList.map(r => `${r.hours.toFixed(1)}h a ${formatCurrencyWithSymbol(r.rate, currency.symbol, currency.code)}`).join(' + ')
+                    : 'Planilla histórica'}
                 </span>
               </div>
             </div>
@@ -729,9 +894,16 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                   Registro Diario de {currentExEmp?.name} · {formatMonthSpanish(monthStr)}
                 </span>
               </h3>
-              <span className="text-xs text-slate-500">
-                31 días de registro
-              </span>
+              <div className="flex items-center gap-2">
+                {hasMultipleRatesInMonth && (
+                  <span className="text-[11px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-lg font-bold">
+                    Tarifa escalonada aplicada
+                  </span>
+                )}
+                <span className="text-xs text-slate-500">
+                  {allDays.length} días de registro
+                </span>
+              </div>
             </div>
 
             <div className="overflow-x-auto max-h-[calc(100vh-280px)] overflow-y-auto">
@@ -743,6 +915,7 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                     <th className="py-2.5 px-3">Salidas Intermedias</th>
                     <th className="py-2.5 px-3">2do Turno (Tarde)</th>
                     <th className="py-2.5 px-3 text-right">Total Horas</th>
+                    <th className="py-2.5 px-3 text-right">Tarifa / Subtotal</th>
                     <th className="py-2.5 px-3">Estado / Observaciones</th>
                     <th className="py-2.5 px-3 text-center">Acción</th>
                   </tr>
@@ -753,6 +926,9 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                     const isSun = isSunday(dateStr);
                     const dayNumber = dateStr.split('-')[2];
                     const dayName = formatDateShortSpanish(dateStr);
+                    const dayRate = getEmployeeRateForDate(currentExEmp, dateStr);
+                    const daySubtotal = (rec.totalHours || 0) * dayRate;
+                    const hasHours = (rec.totalHours || 0) > 0;
 
                     return (
                       <tr
@@ -806,10 +982,26 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
 
                         <td className="py-2 px-3 text-right whitespace-nowrap">
                           <span className={`font-black ${
-                            (rec.totalHours || 0) > 0 ? 'text-slate-900' : 'text-slate-300'
+                            hasHours ? 'text-slate-900' : 'text-slate-300'
                           }`}>
-                            {(rec.totalHours || 0) > 0 ? `${rec.totalHours?.toFixed(2)}h` : '-'}
+                            {hasHours ? `${rec.totalHours?.toFixed(2)}h` : '-'}
                           </span>
+                        </td>
+
+                        {/* Tarifa / Subtotal */}
+                        <td className="py-2 px-3 text-right whitespace-nowrap">
+                          {hasHours ? (
+                            <div className="leading-tight">
+                              <span className="font-extrabold text-slate-900 text-xs">
+                                {formatCurrencyWithSymbol(daySubtotal, currency.symbol, currency.code)}
+                              </span>
+                              <p className="text-[9px] text-slate-500 font-semibold leading-none mt-0.5">
+                                {formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-slate-300 text-xs leading-none">-</span>
+                          )}
                         </td>
 
                         <td className="py-2 px-3 text-xs text-slate-600 max-w-[200px] truncate">
@@ -1029,26 +1221,84 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
 
       {/* PDF / Print Modal */}
       {showPDFModal && currentExEmp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-6 sm:p-8 border border-slate-200 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
+          {/* Dedicated print stylesheet for single-page A4 output */}
+          <style>{`
+            @page {
+              size: A4 portrait;
+              margin: 5mm 7mm;
+            }
+            @media print {
+              html, body {
+                width: 210mm !important;
+                height: 297mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: white !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              body * {
+                visibility: hidden !important;
+              }
+              #printable-a4-ex-monthly-grid, #printable-a4-ex-monthly-grid * {
+                visibility: visible !important;
+              }
+              #printable-a4-ex-monthly-grid {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 4mm 6mm !important;
+                background: white !important;
+                font-size: 8.5pt !important;
+                line-height: 1.15 !important;
+                box-sizing: border-box !important;
+              }
+              .no-print, .print\\:hidden {
+                display: none !important;
+              }
+              .page-break-avoid {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+            }
+          `}</style>
+
+          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full border border-slate-200 overflow-hidden my-auto max-h-[96vh] flex flex-col">
+            <div className="p-3.5 sm:p-4 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white print:hidden">
               <div className="flex items-center gap-2">
-                <Printer className="w-5 h-5 text-orange-600" />
-                <h3 className="font-bold text-slate-900 text-base">
-                  Vista Previa de Planilla Histórica (PDF / Imprimir)
-                </h3>
+                <div className="p-2 bg-blue-600/30 rounded-xl text-blue-400">
+                  <Printer className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-100 text-sm sm:text-base flex items-center gap-2">
+                    <span>Planilla Histórica (PDF / Imprimir)</span>
+                    <span className="text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                      Formato A4 (1 Hoja)
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium">
+                    {currentExEmp.name} · {formatMonthSpanish(monthStr)}
+                  </p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => window.print()}
-                  className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md transition-all active:scale-95"
                 >
                   <Printer className="w-4 h-4" />
                   <span>Imprimir / Guardar como PDF</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setShowPDFModal(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                  className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+                  title="Cerrar vista previa"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1056,107 +1306,430 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
             </div>
 
             {/* Printable Area */}
-            <div className="mt-6 p-6 border border-slate-200 rounded-xl bg-slate-50/50 text-slate-800 space-y-5">
-              <div className="flex items-start justify-between border-b border-slate-200 pb-4">
+            <div id="printable-a4-ex-monthly-grid" className="p-4 sm:p-6 overflow-y-auto space-y-3 bg-white text-slate-800 font-sans text-xs">
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-2.5 page-break-avoid">
                 <div>
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                    CONTROL DE HORAS Y PAGO
+                  <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 block">
+                    ARCHIVO HISTÓRICO DE EX EMPLEADOS
+                  </span>
+                  <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-tight">
+                    Planilla Mensual de Control de Horas
                   </h2>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
-                    Planilla Histórica de Ex Empleado
+                  <p className="text-[10px] text-slate-600 font-medium">
+                    Registro de turnos, jornadas y liquidación de ex empleado
                   </p>
                 </div>
-                <div className="text-right">
-                  <span className="text-sm font-bold text-slate-800 capitalize block">
+                <div className="text-right text-[10px] text-slate-600 shrink-0">
+                  <span className="text-sm font-extrabold text-slate-900 capitalize block">
                     {formatMonthSpanish(monthStr)}
                   </span>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[9px] text-slate-400 block mt-0.5">
                     Emitido: {formatDateDisplay(getTodayDateStr())}
                   </span>
                 </div>
               </div>
 
-              {/* Employee metadata in printable format */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-xl border border-slate-200 text-xs">
-                <div>
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">Ex Empleado</span>
-                  <span className="font-bold text-slate-900">{currentExEmp.name}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">Cargo / Puesto</span>
-                  <span className="font-semibold text-slate-700">{currentExEmp.role}</span>
-                </div>
-                <div>
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">Fechas de Trabajo</span>
-                  <span className="font-semibold text-slate-700">
+              {/* Employee metadata & 5 metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-300 text-[10px] page-break-avoid">
+                <div className="border-r border-slate-200 pr-2">
+                  <span className="block text-[8.5px] uppercase font-bold text-slate-500">Ex Empleado</span>
+                  <span className="font-extrabold text-slate-900 text-xs block truncate">{currentExEmp.name}</span>
+                  <span className="text-[9px] text-slate-600 block truncate">{currentExEmp.role}</span>
+                  <span className="text-[8.5px] text-slate-500 block">
                     {currentExEmp.startDate ? formatDateDisplay(currentExEmp.startDate) : 'N/D'} al {currentExEmp.endDate ? formatDateDisplay(currentExEmp.endDate) : 'Retirado'}
                   </span>
                 </div>
-                <div>
-                  <span className="block text-[10px] uppercase font-bold text-slate-400">Tarifa / Total Estimado</span>
-                  <span className="font-bold text-blue-700">
+
+                <div className="border-r border-slate-200 pr-2">
+                  <span className="block text-[8.5px] uppercase font-bold text-slate-500">Días Trabajados</span>
+                  <p className="font-black text-slate-900 text-base leading-tight mt-0.5">
+                    {workedDaysCount} <span className="text-[10px] font-semibold text-slate-600">días</span>
+                  </p>
+                  <p className="text-[8.5px] text-slate-500">
+                    {absentDaysCount > 0 ? `${absentDaysCount} ausencias` : 'Sin ausencias registradas'}
+                  </p>
+                </div>
+
+                <div className="border-r border-slate-200 pr-2">
+                  <span className="block text-[8.5px] uppercase font-bold text-slate-500">Salidas Intermedias</span>
+                  <p className="font-black text-amber-700 text-base leading-tight mt-0.5">
+                    -{totalDeductedExitsHours.toFixed(2)} <span className="text-[10px] font-semibold">h</span>
+                  </p>
+                  <p className="text-[8.5px] text-slate-500">
+                    {totalIntermediateExitsCount} salidas ({formatHoursReadable(totalDeductedExitsHours)})
+                  </p>
+                </div>
+
+                <div className="border-r border-slate-200 pr-2 bg-blue-50/60 p-1 rounded-lg">
+                  <span className="block text-[8.5px] uppercase font-bold text-blue-700">Total Horas Netas</span>
+                  <p className="font-black text-blue-800 text-base leading-tight mt-0.5">
+                    {totalMonthHours.toFixed(2)} <span className="text-[10px] font-semibold">h</span>
+                  </p>
+                  <p className="text-[8.5px] text-blue-600 font-medium">
+                    {formatHoursReadable(totalMonthHours)}
+                  </p>
+                </div>
+
+                <div className="bg-emerald-50/70 p-1 rounded-lg">
+                  <span className="block text-[8.5px] uppercase font-bold text-emerald-800">Total a Liquidar</span>
+                  <p className="font-black text-emerald-900 text-base leading-tight mt-0.5">
                     {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
+                  </p>
+                  <p className="text-[8.5px] text-emerald-700 font-semibold truncate">
+                    {hasMultipleRatesInMonth ? 'Tarifa escalonada' : `${formatCurrencyWithSymbol(currentExEmp.hourlyRate, currency.symbol, currency.code)}/h`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Rate breakdown notice if multiple rates */}
+              {hasMultipleRatesInMonth && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-1.5 text-[9px] text-amber-900 flex items-center justify-between page-break-avoid">
+                  <span className="font-bold">⚡ Desglose de Tarifas Aplicadas en el Mes: </span>
+                  <span className="font-semibold">
+                    {rateBreakdownList.map(r => `${r.hours.toFixed(2)}h a ${formatCurrencyWithSymbol(r.rate, currency.symbol, currency.code)}/h (${formatCurrencyWithSymbol(r.subtotal, currency.symbol, currency.code)})`).join(' · ')}
                   </span>
                 </div>
-              </div>
+              )}
 
               {/* Summary table */}
-              <table className="w-full text-left border-collapse text-[11px] bg-white rounded-lg overflow-hidden border border-slate-200">
-                <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                  <tr>
-                    <th className="py-2 px-2.5">Fecha</th>
-                    <th className="py-2 px-2.5">Día</th>
-                    <th className="py-2 px-2.5">Turno 1 (Mañana)</th>
-                    <th className="py-2 px-2.5">Salidas Intermedias</th>
-                    <th className="py-2 px-2.5">Turno 2 (Tarde)</th>
-                    <th className="py-2 px-2.5 text-right">Horas Netas</th>
-                    <th className="py-2 px-2.5">Observación</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {allDays.map(dateStr => {
-                    const rec = getRecordForDate(dateStr);
-                    const dayName = formatDateShortSpanish(dateStr);
-                    return (
-                      <tr key={dateStr}>
-                        <td className="py-1.5 px-2.5 font-medium">{dateStr}</td>
-                        <td className="py-1.5 px-2.5">{dayName}</td>
-                        <td className="py-1.5 px-2.5">
-                          {rec.entry1 && rec.exit1 ? `${rec.entry1} - ${rec.exit1}` : '-'}
-                        </td>
-                        <td className="py-1.5 px-2.5">
-                          {rec.intermediateExits && rec.intermediateExits.length > 0
-                            ? rec.intermediateExits.map(x => `${x.exitTime}-${x.returnTime}`).join(', ')
-                            : '-'}
-                        </td>
-                        <td className="py-1.5 px-2.5">
-                          {rec.entry2 && rec.exit2 ? `${rec.entry2} - ${rec.exit2}` : '-'}
-                        </td>
-                        <td className="py-1.5 px-2.5 text-right font-bold">
-                          {rec.isAbsent ? 'Ausente' : ((rec.totalHours || 0) > 0 ? `${rec.totalHours?.toFixed(2)}h` : '-')}
-                        </td>
-                        <td className="py-1.5 px-2.5 text-slate-500">{rec.notes || '-'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="border border-slate-300 rounded-lg overflow-hidden page-break-avoid">
+                <table className="w-full text-left border-collapse text-[9px] leading-tight">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 uppercase text-[8.5px]">
+                      <th className="py-1 px-1.5 border-r border-slate-200">Fecha y Día</th>
+                      <th className="py-1 px-1.5 border-r border-slate-200">1er Turno (Mañana)</th>
+                      <th className="py-1 px-1.5 border-r border-slate-200">Salidas Intermedias</th>
+                      <th className="py-1 px-1.5 border-r border-slate-200">2do Turno (Tarde)</th>
+                      <th className="py-1 px-1.5 text-right border-r border-slate-200">Total Horas</th>
+                      <th className="py-1 px-1.5 text-right border-r border-slate-200">Tarifa / Subtotal</th>
+                      <th className="py-1 px-1.5">Estado / Observación</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {allDays.map(dateStr => {
+                      const rec = getRecordForDate(dateStr);
+                      const sunday = isSunday(dateStr);
+                      const dayName = formatDateShortSpanish(dateStr);
+                      const dayRate = getEmployeeRateForDate(currentExEmp, dateStr);
+                      const daySubtotal = (rec.totalHours || 0) * dayRate;
+                      const hasHours = (rec.totalHours || 0) > 0;
+
+                      return (
+                        <tr key={dateStr} className={sunday ? 'bg-amber-50/25' : rec.isAbsent ? 'bg-red-50/30' : 'hover:bg-slate-50'}>
+                          <td className="py-0.5 px-1.5 font-bold whitespace-nowrap border-r border-slate-200">
+                            {dayName} {sunday && <span className="text-amber-800 text-[8px] font-bold">(Dom)</span>}
+                          </td>
+                          <td className="py-0.5 px-1.5 whitespace-nowrap border-r border-slate-200 text-slate-700">
+                            {rec.isAbsent ? (
+                              <span className="text-red-600 font-semibold italic">Ausente</span>
+                            ) : rec.entry1 && rec.exit1 ? (
+                              `${rec.entry1} - ${rec.exit1}`
+                            ) : (
+                              '--'
+                            )}
+                          </td>
+                          <td className="py-0.5 px-1.5 border-r border-slate-200 text-slate-700">
+                            {rec.intermediateExits && rec.intermediateExits.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {rec.intermediateExits.map((x, idx) => (
+                                  <span key={idx} className="text-red-700 font-semibold bg-red-50 px-1 rounded text-[8px] border border-red-200">
+                                    {x.exitTime}-{x.returnTime}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              '--'
+                            )}
+                          </td>
+                          <td className="py-0.5 px-1.5 whitespace-nowrap border-r border-slate-200 text-slate-700">
+                            {rec.isAbsent ? (
+                              '--'
+                            ) : rec.entry2 && rec.exit2 ? (
+                              `${rec.entry2} - ${rec.exit2}`
+                            ) : (
+                              '--'
+                            )}
+                          </td>
+                          <td className="py-0.5 px-1.5 text-right font-black border-r border-slate-200 whitespace-nowrap">
+                            <span className={hasHours ? 'text-slate-900' : 'text-slate-400'}>
+                              {hasHours ? `${rec.totalHours?.toFixed(2)} h` : '0.00 h'}
+                            </span>
+                          </td>
+                          <td className="py-0.5 px-1.5 text-right whitespace-nowrap border-r border-slate-200">
+                            {hasHours ? (
+                              <div>
+                                <span className="font-extrabold text-slate-900">
+                                  {formatCurrencyWithSymbol(daySubtotal, currency.symbol, currency.code)}
+                                </span>
+                                <span className="block text-[8px] text-slate-500 leading-none">
+                                  ({formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h)
+                                </span>
+                              </div>
+                            ) : (
+                              '--'
+                            )}
+                          </td>
+                          <td className="py-0.5 px-1.5 text-slate-500 italic truncate max-w-[170px]">
+                            {rec.isAbsent ? (
+                              <span className="text-red-600 font-semibold not-italic">Falta</span>
+                            ) : (
+                              rec.notes || '--'
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400 text-[9.5px]">
+                      <td colSpan={2} className="py-1 px-1.5 uppercase font-black text-slate-800 border-r border-slate-300">
+                        TOTALES ({allDays.length} DÍAS):
+                      </td>
+                      <td className="py-1 px-1.5 text-amber-800 font-bold border-r border-slate-300">
+                        {totalDeductedExitsHours > 0 ? `-${totalDeductedExitsHours.toFixed(2)} h salidas` : '--'}
+                      </td>
+                      <td className="py-1 px-1.5 border-r border-slate-300"></td>
+                      <td className="py-1 px-1.5 text-right font-black text-blue-800 text-[10.5px] border-r border-slate-300">
+                        {totalMonthHours.toFixed(2)} h
+                      </td>
+                      <td className="py-1 px-1.5 text-right font-black text-emerald-900 text-[10.5px] border-r border-slate-300">
+                        {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
+                      </td>
+                      <td className="py-1 px-1.5 text-[8.5px] text-slate-700 font-bold">
+                        {workedDaysCount} días con asistencia
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
 
               {/* Signatures */}
-              <div className="grid grid-cols-2 gap-8 pt-8">
-                <div className="text-center">
-                  <div className="border-t border-slate-300 pt-2 w-48 mx-auto">
-                    <p className="text-xs font-bold text-slate-800">Firma del Empleado</p>
-                    <p className="text-[10px] text-slate-400">{currentExEmp.name}</p>
-                  </div>
+              <div className="pt-3 border-t border-slate-300 grid grid-cols-2 gap-8 text-center text-[9px] page-break-avoid">
+                <div>
+                  <div className="border-t border-slate-400 w-44 mx-auto mb-1"></div>
+                  <p className="font-extrabold text-slate-900 text-[10px]">{currentExEmp.name}</p>
+                  <p className="text-[8px] text-slate-500">Firma del Empleado</p>
                 </div>
-                <div className="text-center">
-                  <div className="border-t border-slate-300 pt-2 w-48 mx-auto">
-                    <p className="text-xs font-bold text-slate-800">Firma del Encargado / Empresa</p>
-                    <p className="text-[10px] text-slate-400">Conforme</p>
-                  </div>
+                <div>
+                  <div className="border-t border-slate-400 w-44 mx-auto mb-1"></div>
+                  <p className="font-extrabold text-slate-900 text-[10px]">Firma del Encargado / Empresa</p>
+                  <p className="text-[8px] text-slate-500">Conforme</p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Historial de Cambios de Salario Modal */}
+      {showRateHistoryModal && rateModalEmployee && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 my-8 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl ${rateModalEmployee.color || 'bg-slate-700'} text-white font-bold flex items-center justify-center text-sm shadow-xs shrink-0`}>
+                  {rateModalEmployee.name.split(' ').map(n => n[0]).slice(0, 2).join('')}
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <span>Historial de Cambios de Salario</span>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">
+                      Ex Empleado
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {rateModalEmployee.name} · {rateModalEmployee.role}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRateHistoryModal(false);
+                  setRateModalEmployee(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Timeline of rate changes */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">
+                  Línea de Tiempo de Tarifas y Aumentos
+                </label>
+
+                <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                  {(() => {
+                    const history = rateModalEmployee.rateHistory && rateModalEmployee.rateHistory.length > 0
+                      ? [...rateModalEmployee.rateHistory].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate))
+                      : [
+                          {
+                            effectiveDate: rateModalEmployee.startDate || '2020-01-01',
+                            rate: rateModalEmployee.hourlyRate || 18000,
+                            notes: 'Tarifa inicial'
+                          }
+                        ];
+
+                    return history.map((entry, idx) => {
+                      const isLast = idx === history.length - 1;
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex items-center justify-between p-3 rounded-xl border text-xs transition-all ${
+                            isLast
+                              ? 'bg-blue-50/70 border-blue-200 shadow-2xs'
+                              : 'bg-slate-50/70 border-slate-200'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${
+                              isLast
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}>
+                              #{idx + 1}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-slate-900 text-sm">
+                                  {formatCurrencyWithSymbol(entry.rate, currency.symbol, currency.code)} / h
+                                </span>
+                                {isLast && (
+                                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded">
+                                    Última tarifa
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-0.5">
+                                <span>Desde: <strong className="text-slate-700">{formatDateDisplay(entry.effectiveDate)}</strong></span>
+                                {entry.notes && (
+                                  <>
+                                    <span>·</span>
+                                    <span className="text-slate-600 italic">"{entry.notes}"</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {history.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`¿Eliminar la tarifa de ${formatCurrencyWithSymbol(entry.rate, currency.symbol, currency.code)} vigente desde ${formatDateDisplay(entry.effectiveDate)}?`)) {
+                                    handleDeleteRateFromHistory(idx);
+                                  }
+                                }}
+                                title="Eliminar registro de tarifa"
+                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Formulario para registrar nuevo aumento o corrección histórica */}
+              <form onSubmit={handleAddRateToHistory} className="border border-blue-200 rounded-xl p-4 bg-gradient-to-br from-blue-50/40 to-slate-50/60 space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-blue-900">
+                    <ArrowUpRight className="w-4 h-4 text-blue-600" />
+                    <span>Registrar Nuevo Aumento o Modificación de Tarifa</span>
+                  </div>
+                  <span className="text-[10px] bg-blue-100 text-blue-800 font-semibold px-2 py-0.5 rounded-md">
+                    Nuevo precio
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Fecha desde la cual rige *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={modalEffectiveDate}
+                      onChange={(e) => setModalEffectiveDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Antes de esta fecha se mantendrá la tarifa anterior
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Nueva Tarifa por Hora ({currency.symbol}) *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-2 text-xs font-bold text-slate-500">
+                        {currency.symbol}
+                      </span>
+                      <input
+                        type="number"
+                        required
+                        min="0"
+                        step="any"
+                        value={modalNewRate || ''}
+                        onChange={(e) => setModalNewRate(e.target.value === '' ? 0 : Number(e.target.value))}
+                        className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        placeholder="Ej. 25000"
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Cualquier monto sin restricciones
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Motivo o Detalle (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={modalRateNotes}
+                    onChange={(e) => setModalRateNotes(e.target.value)}
+                    placeholder="Ej. Aumento de octubre, ajuste por desempeño, categoría..."
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs text-slate-900 bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>Guardar y Aplicar desde Fecha</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end rounded-b-2xl">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRateHistoryModal(false);
+                  setRateModalEmployee(null);
+                }}
+                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Cerrar
+              </button>
             </div>
           </div>
         </div>

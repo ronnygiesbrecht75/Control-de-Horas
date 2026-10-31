@@ -117,7 +117,8 @@ export function buildWhatsAppMessage(
   net: number,
   currency: CurrencyConfig,
   language: 'es' | 'de' = 'es',
-  germanPeriodLabel?: string
+  germanPeriodLabel?: string,
+  rateDetail?: string
 ): string {
   const lines: string[] = [];
 
@@ -127,7 +128,11 @@ export function buildWhatsAppMessage(
     lines.push(`🗓️ *Abrechnungszeitraum:* ${germanPeriodLabel || periodLabel}`);
     lines.push(`⏱️ *Gearbeitete Tage:* ${stats.daysWorked} Tage`);
     lines.push(`⌛ *Gesamtstunden:* ${stats.totalHours.toFixed(2)} Std. (${formatHoursReadableGerman(stats.totalHours)})`);
-    lines.push(`💵 *Stundensatz:* ${formatCurrencyWithSymbol(emp.hourlyRate, currency.symbol, currency.code)} / Std.`);
+    if (rateDetail) {
+      lines.push(`💵 *Angewandte Stundensätze:* ${rateDetail}`);
+    } else {
+      lines.push(`💵 *Stundensatz:* ${formatCurrencyWithSymbol(emp.hourlyRate, currency.symbol, currency.code)} / Std.`);
+    }
     lines.push(`💰 *Zwischensumme Stunden:* ${formatCurrencyWithSymbol(gross, currency.symbol, currency.code)}`);
 
     if ((adj.bonusAmount || 0) > 0) {
@@ -154,7 +159,11 @@ export function buildWhatsAppMessage(
     lines.push(`🗓️ *Período:* ${periodLabel}`);
     lines.push(`⏱️ *Días trabajados:* ${stats.daysWorked} días`);
     lines.push(`⌛ *Total horas:* ${stats.totalHours.toFixed(2)} hs (${formatHoursReadable(stats.totalHours)})`);
-    lines.push(`💵 *Tarifa:* ${formatCurrencyWithSymbol(emp.hourlyRate, currency.symbol, currency.code)} / hora`);
+    if (rateDetail) {
+      lines.push(`💵 *Tarifas aplicadas:* ${rateDetail}`);
+    } else {
+      lines.push(`💵 *Tarifa:* ${formatCurrencyWithSymbol(emp.hourlyRate, currency.symbol, currency.code)} / hora`);
+    }
     lines.push(`💰 *Subtotal horas:* ${formatCurrencyWithSymbol(gross, currency.symbol, currency.code)}`);
 
     if ((adj.bonusAmount || 0) > 0) {
@@ -267,11 +276,13 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
   const getEmployeePeriodStats = (employeeId: string) => {
     let totalHours = 0;
     let daysWorked = 0;
+    const dailyItems: { dateStr: string; hours: number }[] = [];
     periodDays.forEach(dateStr => {
       const id = `${employeeId}_${dateStr}`;
       const rec = records.find(r => r.id === id || (r.employeeId === employeeId && r.dateStr === dateStr));
       if (rec && rec.totalHours && rec.totalHours > 0) {
         totalHours += rec.totalHours;
+        dailyItems.push({ dateStr, hours: rec.totalHours });
         if (!rec.isAbsent) {
           daysWorked += 1;
         }
@@ -279,7 +290,8 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
     });
     return {
       totalHours: Number(totalHours.toFixed(2)),
-      daysWorked
+      daysWorked,
+      dailyItems
     };
   };
 
@@ -328,7 +340,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
   displayedEmployees.forEach(emp => {
     const stats = getEmployeePeriodStats(emp.id);
     const adj = getEmployeeAdjustment(emp.id);
-    const earnings = calculateEmployeePeriodEarnings(emp, stats.totalHours);
+    const earnings = calculateEmployeePeriodEarnings(emp, stats.totalHours, stats.dailyItems);
     const net = earnings.gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
     teamTotalHours += stats.totalHours;
     teamTotalPayroll += Math.max(0, net);
@@ -346,7 +358,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
       'Hasta',
       'Días Trabajados',
       'Horas Totales',
-      'Precio Hora',
+      'Precio Hora / Tarifas',
       'Subtotal Bruto',
       'Bonos',
       'Adelantos',
@@ -356,8 +368,9 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
     const rows = displayedEmployees.map(emp => {
       const stats = getEmployeePeriodStats(emp.id);
       const adj = getEmployeeAdjustment(emp.id);
-      const earnings = calculateEmployeePeriodEarnings(emp, stats.totalHours);
+      const earnings = calculateEmployeePeriodEarnings(emp, stats.totalHours, stats.dailyItems);
       const net = earnings.gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
+      const rateLabel = earnings.hasMultipleRates ? earnings.detail : emp.hourlyRate.toFixed(2);
       return [
         `"${emp.name}"`,
         `"${emp.role}"`,
@@ -367,7 +380,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
         currentPeriodConfig.endDate,
         stats.daysWorked,
         stats.totalHours.toFixed(2),
-        emp.hourlyRate.toFixed(2),
+        `"${rateLabel}"`,
         earnings.gross.toFixed(2),
         (adj.bonusAmount || 0).toFixed(2),
         (adj.advanceAmount || 0).toFixed(2),
@@ -418,7 +431,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
     if (!whatsappModalEmp) return;
     const stats = getEmployeePeriodStats(whatsappModalEmp.id);
     const adj = getEmployeeAdjustment(whatsappModalEmp.id);
-    const earnings = calculateEmployeePeriodEarnings(whatsappModalEmp, stats.totalHours);
+    const earnings = calculateEmployeePeriodEarnings(whatsappModalEmp, stats.totalHours, stats.dailyItems);
     const gross = earnings.gross;
     const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
 
@@ -440,7 +453,8 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
       net,
       currency,
       receiptLanguage,
-      germanPeriod
+      germanPeriod,
+      earnings.hasMultipleRates ? earnings.detail : undefined
     );
 
     const formattedPhone = formatPhoneNumberForWhatsApp(trimmedPhone);
@@ -456,7 +470,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
     if (!whatsappModalEmp) return;
     const stats = getEmployeePeriodStats(whatsappModalEmp.id);
     const adj = getEmployeeAdjustment(whatsappModalEmp.id);
-    const earnings = calculateEmployeePeriodEarnings(whatsappModalEmp, stats.totalHours);
+    const earnings = calculateEmployeePeriodEarnings(whatsappModalEmp, stats.totalHours, stats.dailyItems);
     const gross = earnings.gross;
     const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
 
@@ -470,7 +484,8 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
       net,
       currency,
       receiptLanguage,
-      germanPeriod
+      germanPeriod,
+      earnings.hasMultipleRates ? earnings.detail : undefined
     );
 
     navigator.clipboard.writeText(msg);
@@ -798,7 +813,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
           displayedEmployees.map(emp => {
             const stats = getEmployeePeriodStats(emp.id);
             const adj = getEmployeeAdjustment(emp.id);
-            const earnings = calculateEmployeePeriodEarnings(emp, stats.totalHours);
+            const earnings = calculateEmployeePeriodEarnings(emp, stats.totalHours, stats.dailyItems);
             const gross = earnings.gross;
             const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
             const isQuincenal = emp.paymentFrequency === 'quincenal';
@@ -935,7 +950,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                         </span>
                         <input
                           type="number"
-                          step={currency.code === 'PYG' ? '500' : '0.5'}
+                          step="any"
                           min="0"
                           value={emp.hourlyRate || ''}
                           onKeyDown={handleEnterNavigation}
@@ -949,6 +964,11 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                       <span className="text-[11px] text-slate-500 font-semibold truncate" title={earnings.detail}>
                         Bruto: {formatCurrencyWithSymbol(gross, currency.symbol, currency.code)}
                       </span>
+                      {earnings.hasMultipleRates && (
+                        <span className="text-[10px] text-amber-700 font-bold block truncate mt-0.5 bg-amber-50 px-1 py-0.5 rounded border border-amber-200" title={earnings.detail}>
+                          ⚡ {earnings.detail}
+                        </span>
+                      )}
                     </div>
 
                     {/* 3. Advances for this period */}
@@ -962,7 +982,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                         </span>
                         <input
                           type="number"
-                          step="10000"
+                          step="any"
                           min="0"
                           value={adj.advanceAmount || ''}
                           onKeyDown={handleEnterNavigation}
@@ -996,7 +1016,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                         </span>
                         <input
                           type="number"
-                          step="10000"
+                          step="any"
                           min="0"
                           value={adj.bonusAmount || ''}
                           onKeyDown={handleEnterNavigation}
@@ -1265,7 +1285,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
               {(() => {
                 const stats = getEmployeePeriodStats(selectedReceiptEmp.id);
                 const adj = getEmployeeAdjustment(selectedReceiptEmp.id);
-                const earnings = calculateEmployeePeriodEarnings(selectedReceiptEmp, stats.totalHours);
+                const earnings = calculateEmployeePeriodEarnings(selectedReceiptEmp, stats.totalHours, stats.dailyItems);
                 const gross = earnings.gross;
                 const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
 
@@ -1303,8 +1323,13 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                             )
                           </td>
                           <td className="py-2.5 px-3 text-right text-slate-600">
-                            {formatCurrencyWithSymbol(selectedReceiptEmp.hourlyRate, currency.symbol, currency.code)} /{' '}
-                            {receiptLanguage === 'de' ? 'Std.' : 'h'}
+                            {earnings.hasMultipleRates ? (
+                              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 inline-block text-right">
+                                {earnings.detail}
+                              </span>
+                            ) : (
+                              `${formatCurrencyWithSymbol(selectedReceiptEmp.hourlyRate, currency.symbol, currency.code)} / ${receiptLanguage === 'de' ? 'Std.' : 'h'}`
+                            )}
                           </td>
                           <td className="py-2.5 px-3 text-right font-bold text-slate-900">
                             {formatCurrencyWithSymbol(gross, currency.symbol, currency.code)}
@@ -1396,7 +1421,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
       {whatsappModalEmp && (() => {
         const stats = getEmployeePeriodStats(whatsappModalEmp.id);
         const adj = getEmployeeAdjustment(whatsappModalEmp.id);
-        const earnings = calculateEmployeePeriodEarnings(whatsappModalEmp, stats.totalHours);
+        const earnings = calculateEmployeePeriodEarnings(whatsappModalEmp, stats.totalHours, stats.dailyItems);
         const gross = earnings.gross;
         const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
         const germanPeriod = getGermanPeriodLabel(currentPeriodConfig, monthStr);
@@ -1409,7 +1434,8 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
           net,
           currency,
           receiptLanguage,
-          germanPeriod
+          germanPeriod,
+          earnings.hasMultipleRates ? earnings.detail : undefined
         );
 
         return (

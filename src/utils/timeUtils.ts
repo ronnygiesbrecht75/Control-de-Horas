@@ -1,4 +1,4 @@
-import { SettlementPeriodConfig, Employee, TimeInterval, DailyTimeRecord, IntermediateExit } from '../types';
+import { SettlementPeriodConfig, Employee, HourlyRateEntry, TimeInterval, DailyTimeRecord, IntermediateExit } from '../types';
 
 /**
  * Convert time string "HH:MM" to total minutes from midnight.
@@ -402,16 +402,60 @@ export function formatDateRangeSpanish(startDate: string, endDate: string): stri
 }
 
 /**
+ * Get the exact hourly rate applicable for an employee on a specific date (YYYY-MM-DD).
+ * Checks the employee's rateHistory with effective dates.
+ * If the employee started with 15.000 on 2026-09-01 and got a raise to 18.000 on 2026-10-01,
+ * any date in September gets 15.000, and from Oct 1st onwards gets 18.000.
+ */
+export function getEmployeeRateForDate(emp?: Employee, dateStr?: string): number {
+  if (!emp) return 0;
+  const history = emp.rateHistory;
+  if (!history || history.length === 0) {
+    return emp.hourlyRate || 0;
+  }
+
+  // If no date specified, default to today
+  const targetDate = dateStr || getTodayDateStr();
+
+  // Sort history ascending by effective date
+  const sorted = [...history].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
+
+  // Find all entries where effectiveDate <= targetDate
+  const applicable = sorted.filter(item => item.effectiveDate <= targetDate);
+
+  if (applicable.length > 0) {
+    // Return the latest rate effective on or before targetDate
+    return applicable[applicable.length - 1].rate;
+  }
+
+  // If targetDate is before all recorded effective dates, return the earliest recorded rate
+  return sorted[0].rate ?? emp.hourlyRate ?? 0;
+}
+
+export interface RateBreakdownGroup {
+  rate: number;
+  hours: number;
+  subtotal: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+/**
  * Calculate employee gross earnings for a given period:
- * - If employee has hourlyRate: gross = hoursWorked * hourlyRate
- * - If employee has monthlyBaseSalary: proportional to hours worked in standard month (approx 180h or hourly rate equivalent)
+ * - If employee has monthlyBaseSalary: proportional to hours worked in standard month (approx 180h)
+ * - If dailyItems ({ dateStr, hours }) is provided: computes exact earnings day-by-day based on the rate active on each day
+ * - Fallback: hoursWorked * current hourlyRate
  */
 export function calculateEmployeePeriodEarnings(
   emp: Employee,
-  periodHours: number
-): { gross: number; detail: string } {
-  const hourlyRate = emp.hourlyRate || 0;
-  
+  periodHours: number,
+  dailyItems?: { dateStr: string; hours: number }[]
+): {
+  gross: number;
+  detail: string;
+  hasMultipleRates?: boolean;
+  rateGroups?: RateBreakdownGroup[];
+} {
   if (emp.monthlyBaseSalary && emp.monthlyBaseSalary > 0) {
     // Proportional to standard full month hours (180h standard in Paraguay/Latin America 45h/week or 30 days)
     const standardMonthHours = 180;
@@ -422,10 +466,76 @@ export function calculateEmployeePeriodEarnings(
     };
   }
 
-  const gross = periodHours * hourlyRate;
+  // If daily records are provided, calculate day-by-day exact rate
+  if (dailyItems && dailyItems.length > 0) {
+    const rateMap: Record<number, { hours: number; subtotal: number; dates: string[] }> = {};
+    let totalGross = 0;
+
+    dailyItems.forEach(item => {
+      if (item.hours > 0) {
+        const rate = getEmployeeRateForDate(emp, item.dateStr);
+        const dayPay = item.hours * rate;
+        totalGross += dayPay;
+
+        if (!rateMap[rate]) {
+          rateMap[rate] = { hours: 0, subtotal: 0, dates: [] };
+        }
+        rateMap[rate].hours += item.hours;
+        rateMap[rate].subtotal += dayPay;
+        rateMap[rate].dates.push(item.dateStr);
+      }
+    });
+
+    const rates = Object.keys(rateMap).map(Number);
+
+    if (rates.length > 1) {
+      // Multiple rates in the same period! E.g. raise in the middle of month
+      const rateGroups: RateBreakdownGroup[] = rates
+        .sort((a, b) => a - b)
+        .map(rate => {
+          const g = rateMap[rate];
+          g.dates.sort();
+          return {
+            rate,
+            hours: Number(g.hours.toFixed(2)),
+            subtotal: Number(g.subtotal.toFixed(2)),
+            startDate: g.dates[0],
+            endDate: g.dates[g.dates.length - 1]
+          };
+        });
+
+      const detailParts = rateGroups.map(
+        g => `${g.hours.toFixed(1)}h a ₲ ${g.rate.toLocaleString('es-PY')}`
+      );
+
+      return {
+        gross: Number(totalGross.toFixed(2)),
+        detail: detailParts.join(' + '),
+        hasMultipleRates: true,
+        rateGroups
+      };
+    } else if (rates.length === 1) {
+      const singleRate = rates[0];
+      return {
+        gross: Number(totalGross.toFixed(2)),
+        detail: `${periodHours.toFixed(2)}h × ₲ ${singleRate.toLocaleString('es-PY')}/h`,
+        hasMultipleRates: false,
+        rateGroups: [{
+          rate: singleRate,
+          hours: periodHours,
+          subtotal: totalGross
+        }]
+      };
+    }
+  }
+
+  // Fallback if no daily items or 0 hours
+  const fallbackRate = emp.hourlyRate || 0;
+  const gross = periodHours * fallbackRate;
   return {
     gross: Number(gross.toFixed(2)),
-    detail: `${periodHours.toFixed(2)}h × ${hourlyRate.toLocaleString('es-PY')}/h`
+    detail: `${periodHours.toFixed(2)}h × ${fallbackRate.toLocaleString('es-PY')}/h`,
+    hasMultipleRates: false
   };
 }
 

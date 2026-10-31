@@ -161,10 +161,36 @@ export default function App() {
     }
   };
 
-  const handleUpdateEmployeeRate = (employeeId: string, newRate: number) => {
+  const handleUpdateEmployeeRate = (employeeId: string, newRate: number, effectiveDate?: string) => {
     setEmployees(prev => prev.map(emp => {
       if (emp.id === employeeId) {
-        return { ...emp, hourlyRate: newRate };
+        const effDate = effectiveDate || getTodayDateStr();
+        const existingHistory = emp.rateHistory && emp.rateHistory.length > 0 
+          ? [...emp.rateHistory] 
+          : [
+              { 
+                effectiveDate: emp.startDate || '2024-01-01', 
+                rate: emp.hourlyRate || newRate, 
+                notes: 'Tarifa inicial' 
+              }
+            ];
+        const matchIdx = existingHistory.findIndex(h => h.effectiveDate === effDate);
+        if (matchIdx >= 0) {
+          existingHistory[matchIdx] = { ...existingHistory[matchIdx], rate: newRate };
+        } else {
+          existingHistory.push({
+            effectiveDate: effDate,
+            rate: newRate,
+            notes: 'Ajuste / Aumento salarial'
+          });
+        }
+        existingHistory.sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
+
+        return { 
+          ...emp, 
+          hourlyRate: newRate,
+          rateHistory: existingHistory
+        };
       }
       return emp;
     }));

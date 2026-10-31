@@ -1,6 +1,6 @@
 {
-  "summary": "Plan de implementación para liquidación y pagos quincenales (15 días) o mensuales (30 días), con selector de rango de fechas en Liquidación y configuración de frecuencia en la ficha de cada empleado.",
-  "updatedAt": "2026-10-17T10:52:47.248007523Z",
-  "requestFeedback": true,
-  "userFacing": true
+  "summary":  "Documentación de la funcionalidad de Historial de Tarifas con Fechas de Vigencia y Aumentos Retroactivos Protegidos.",
+  "updatedAt":  "2026-10-31T13:06:01.672427779Z",
+  "requestFeedback":  true,
+  "userFacing":  true
 }

@@ -36,11 +36,19 @@ export interface DailyTimeRecord {
 
 export type PaymentFrequency = 'quincenal' | 'mensual';
 
+export interface HourlyRateEntry {
+  id?: string;
+  effectiveDate: string; // YYYY-MM-DD (fecha desde la cual rige esta tarifa)
+  rate: number;          // precio por hora e.g. 15000 o 18000
+  notes?: string;        // ej. "Tarifa inicial", "Aumento salarial"
+}
+
 export interface Employee {
   id: string;
   name: string;
   role: string;
   hourlyRate: number; // default price per hour (e.g., 18000)
+  rateHistory?: HourlyRateEntry[]; // historial de tarifas vigentes por fecha
   monthlyBaseSalary?: number; // optional fixed base salary
   paymentFrequency?: PaymentFrequency; // 'quincenal' (cada 15 días) | 'mensual' (cada 30 días)
   defaultEntry1?: string; // e.g., "08:00"

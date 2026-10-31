@@ -122,7 +122,11 @@ export function loadSampleDemoData(): { employees: Employee[], records: DailyTim
       phone: '+595 981 123 456',
       active: true,
       color: 'bg-orange-600',
-      startDate: '2024-03-01'
+      startDate: '2024-03-01',
+      rateHistory: [
+        { effectiveDate: '2024-03-01', rate: 15000, notes: 'Tarifa inicial' },
+        { effectiveDate: '2026-10-01', rate: 18000, notes: 'Aumento salarial de octubre' }
+      ]
     },
     {
       id: 'emp-2',
@@ -137,7 +141,11 @@ export function loadSampleDemoData(): { employees: Employee[], records: DailyTim
       phone: '+595 982 234 567',
       active: true,
       color: 'bg-amber-600',
-      startDate: '2024-06-15'
+      startDate: '2024-06-15',
+      rateHistory: [
+        { effectiveDate: '2024-06-15', rate: 20000, notes: 'Ingreso inicial' },
+        { effectiveDate: '2026-07-01', rate: 22000, notes: 'Aumento anual' }
+      ]
     },
     {
       id: 'emp-3',

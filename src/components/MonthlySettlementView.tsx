@@ -14,6 +14,7 @@ import {
   getPrevMonthStr, 
   getNextMonthStr, 
   formatDateFriendlySpanish,
+  formatDateShortSpanish,
   formatDateRangeSpanish,
   formatCurrencyAmount,
   formatCurrencyWithSymbol,
@@ -111,7 +112,12 @@ export function getGermanPeriodLabel(periodConfig: SettlementPeriodConfig, month
 export function buildWhatsAppMessage(
   emp: Employee,
   periodLabel: string,
-  stats: { totalHours: number; daysWorked: number },
+  stats: { 
+    totalHours: number; 
+    daysWorked: number; 
+    totalProductDeductions?: number; 
+    productDeductionsList?: { dateStr: string; description: string; amount: number }[] 
+  },
   adj: MonthlySettlementAdjustment,
   gross: number,
   net: number,
@@ -140,6 +146,9 @@ export function buildWhatsAppMessage(
     }
     if ((adj.advanceAmount || 0) > 0) {
       lines.push(`🔻 *Vorschüsse / Abzüge:* -${formatCurrencyWithSymbol(adj.advanceAmount, currency.symbol, currency.code)}`);
+    }
+    if ((stats.totalProductDeductions || 0) > 0) {
+      lines.push(`🛒 *Warenbezug / Abzüge:* -${formatCurrencyWithSymbol(stats.totalProductDeductions || 0, currency.symbol, currency.code)}`);
     }
 
     lines.push(`────────────────────`);
@@ -171,6 +180,9 @@ export function buildWhatsAppMessage(
     }
     if ((adj.advanceAmount || 0) > 0) {
       lines.push(`🔻 *Adelantos:* -${formatCurrencyWithSymbol(adj.advanceAmount, currency.symbol, currency.code)}`);
+    }
+    if ((stats.totalProductDeductions || 0) > 0) {
+      lines.push(`🛒 *Retiro de Productos:* -${formatCurrencyWithSymbol(stats.totalProductDeductions || 0, currency.symbol, currency.code)}`);
     }
 
     lines.push(`────────────────────`);
@@ -272,26 +284,47 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
     setCustomEnd(newEnd);
   };
 
-  // Helper to compute hours for one employee in the active period
+  // Helper to compute hours and product deductions for one employee in the active period
   const getEmployeePeriodStats = (employeeId: string) => {
     let totalHours = 0;
     let daysWorked = 0;
+    let totalProductDeductions = 0;
+    const productDeductionsList: { dateStr: string; description: string; amount: number }[] = [];
     const dailyItems: { dateStr: string; hours: number }[] = [];
+
     periodDays.forEach(dateStr => {
       const id = `${employeeId}_${dateStr}`;
       const rec = records.find(r => r.id === id || (r.employeeId === employeeId && r.dateStr === dateStr));
-      if (rec && rec.totalHours && rec.totalHours > 0) {
-        totalHours += rec.totalHours;
-        dailyItems.push({ dateStr, hours: rec.totalHours });
-        if (!rec.isAbsent) {
-          daysWorked += 1;
+      if (rec) {
+        if (rec.totalHours && rec.totalHours > 0) {
+          totalHours += rec.totalHours;
+          dailyItems.push({ dateStr, hours: rec.totalHours });
+          if (!rec.isAbsent) {
+            daysWorked += 1;
+          }
+        }
+        if (rec.productDeductions && rec.productDeductions.length > 0) {
+          rec.productDeductions.forEach(prod => {
+            const amt = Number(prod.amount) || 0;
+            if (amt > 0) {
+              totalProductDeductions += amt;
+              productDeductionsList.push({
+                dateStr,
+                description: prod.description || 'Retiro de producto',
+                amount: amt
+              });
+            }
+          });
         }
       }
     });
+
     return {
       totalHours: Number(totalHours.toFixed(2)),
       daysWorked,
-      dailyItems
+      dailyItems,
+      totalProductDeductions,
+      productDeductionsList
     };
   };
 
@@ -332,7 +365,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
     return freq === frequencyFilter;
   });
 
-  // Calculate team totals for the selected period
+  // Calculate team totals for the selected period (including daily product deductions)
   let teamTotalHours = 0;
   let teamTotalPayroll = 0;
   let teamPaidCount = 0;
@@ -341,7 +374,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
     const stats = getEmployeePeriodStats(emp.id);
     const adj = getEmployeeAdjustment(emp.id);
     const earnings = calculateEmployeePeriodEarnings(emp, stats.totalHours, stats.dailyItems);
-    const net = earnings.gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
+    const net = earnings.gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0) - stats.totalProductDeductions;
     teamTotalHours += stats.totalHours;
     teamTotalPayroll += Math.max(0, net);
     if (adj.isPaid) teamPaidCount += 1;
@@ -362,6 +395,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
       'Subtotal Bruto',
       'Bonos',
       'Adelantos',
+      'Retiro Productos',
       'Total a Pagar (Neto)',
       'Estado'
     ];
@@ -369,7 +403,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
       const stats = getEmployeePeriodStats(emp.id);
       const adj = getEmployeeAdjustment(emp.id);
       const earnings = calculateEmployeePeriodEarnings(emp, stats.totalHours, stats.dailyItems);
-      const net = earnings.gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
+      const net = earnings.gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0) - stats.totalProductDeductions;
       const rateLabel = earnings.hasMultipleRates ? earnings.detail : emp.hourlyRate.toFixed(2);
       return [
         `"${emp.name}"`,
@@ -384,6 +418,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
         earnings.gross.toFixed(2),
         (adj.bonusAmount || 0).toFixed(2),
         (adj.advanceAmount || 0).toFixed(2),
+        (stats.totalProductDeductions || 0).toFixed(2),
         Math.max(0, net).toFixed(2),
         adj.isPaid ? 'Pagado' : 'Pendiente'
       ].join(',');
@@ -433,7 +468,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
     const adj = getEmployeeAdjustment(whatsappModalEmp.id);
     const earnings = calculateEmployeePeriodEarnings(whatsappModalEmp, stats.totalHours, stats.dailyItems);
     const gross = earnings.gross;
-    const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
+    const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0) - stats.totalProductDeductions;
 
     const trimmedPhone = whatsappPhone.trim();
     if (savePhoneToProfile && onUpdateEmployee && trimmedPhone && trimmedPhone !== (whatsappModalEmp.phone || '')) {
@@ -472,7 +507,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
     const adj = getEmployeeAdjustment(whatsappModalEmp.id);
     const earnings = calculateEmployeePeriodEarnings(whatsappModalEmp, stats.totalHours, stats.dailyItems);
     const gross = earnings.gross;
-    const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
+    const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0) - stats.totalProductDeductions;
 
     const germanPeriod = getGermanPeriodLabel(currentPeriodConfig, monthStr);
     const msg = buildWhatsAppMessage(
@@ -815,7 +850,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
             const adj = getEmployeeAdjustment(emp.id);
             const earnings = calculateEmployeePeriodEarnings(emp, stats.totalHours, stats.dailyItems);
             const gross = earnings.gross;
-            const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
+            const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0) - stats.totalProductDeductions;
             const isQuincenal = emp.paymentFrequency === 'quincenal';
 
             return (
@@ -1049,6 +1084,12 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                       <div className="text-2xl font-black text-blue-900 tracking-tight mt-0.5">
                         {formatCurrencyWithSymbol(Math.max(0, net), currency.symbol, currency.code)}
                       </div>
+                      {stats.totalProductDeductions > 0 && (
+                        <div className="mt-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                          <span>Descuento Productos: -{formatCurrencyWithSymbol(stats.totalProductDeductions, currency.symbol, currency.code)}</span>
+                          <span className="text-[9px] text-rose-500 font-semibold block">({stats.productDeductionsList.length} {stats.productDeductionsList.length === 1 ? 'producto' : 'productos'})</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex flex-col gap-2 w-full lg:w-full mt-0 lg:mt-2">
@@ -1287,7 +1328,7 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                 const adj = getEmployeeAdjustment(selectedReceiptEmp.id);
                 const earnings = calculateEmployeePeriodEarnings(selectedReceiptEmp, stats.totalHours, stats.dailyItems);
                 const gross = earnings.gross;
-                const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0);
+                const net = gross + (adj.bonusAmount || 0) - (adj.advanceAmount || 0) - (stats.totalProductDeductions || 0);
 
                 return (
                   <div className="space-y-4">
@@ -1356,6 +1397,32 @@ export const MonthlySettlementView: React.FC<MonthlySettlementViewProps> = ({
                             </td>
                             <td className="py-2.5 px-3 text-right font-bold text-red-700">
                               - {formatCurrencyWithSymbol(adj.advanceAmount || 0, currency.symbol, currency.code)}
+                            </td>
+                          </tr>
+                        )}
+                        {(stats.totalProductDeductions || 0) > 0 && (
+                          <tr className="bg-rose-50/60">
+                            <td className="py-2.5 px-3 font-semibold text-rose-900" colSpan={3}>
+                              <div>
+                                <span>
+                                  {receiptLanguage === 'de'
+                                    ? '(-) Warenbezug / Produktabzüge aus der täglichen Erfassung'
+                                    : '(-) Retiro de Productos / Descuentos de Carga Diaria'}
+                                </span>
+                                {stats.productDeductionsList.length > 0 && (
+                                  <div className="text-[10.5px] text-rose-700 font-normal mt-1 space-y-0.5 pl-2 border-l-2 border-rose-300">
+                                    {stats.productDeductionsList.map((item, idx) => (
+                                      <div key={idx} className="flex justify-between max-w-xs">
+                                        <span>• {item.description} ({formatDateShortSpanish(item.dateStr)}):</span>
+                                        <span className="font-bold">-{formatCurrencyWithSymbol(item.amount, currency.symbol, currency.code)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-bold text-rose-700 align-top">
+                              - {formatCurrencyWithSymbol(stats.totalProductDeductions || 0, currency.symbol, currency.code)}
                             </td>
                           </tr>
                         )}

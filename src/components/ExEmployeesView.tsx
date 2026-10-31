@@ -1416,10 +1416,10 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
 
                       return (
                         <tr key={dateStr} className={sunday ? 'bg-amber-50/25' : rec.isAbsent ? 'bg-red-50/30' : 'hover:bg-slate-50'}>
-                          <td className="py-0.5 px-1.5 font-bold whitespace-nowrap border-r border-slate-200">
+                          <td className="py-1 px-1.5 font-bold whitespace-nowrap border-r border-slate-200">
                             {dayName} {sunday && <span className="text-amber-800 text-[8px] font-bold">(Dom)</span>}
                           </td>
-                          <td className="py-0.5 px-1.5 whitespace-nowrap border-r border-slate-200 text-slate-700">
+                          <td className="py-1 px-1.5 whitespace-nowrap border-r border-slate-200 text-slate-700">
                             {rec.isAbsent ? (
                               <span className="text-red-600 font-semibold italic">Ausente</span>
                             ) : rec.entry1 && rec.exit1 ? (
@@ -1428,7 +1428,7 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                               '--'
                             )}
                           </td>
-                          <td className="py-0.5 px-1.5 border-r border-slate-200 text-slate-700">
+                          <td className="py-1 px-1.5 border-r border-slate-200 text-slate-700">
                             {rec.intermediateExits && rec.intermediateExits.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
                                 {rec.intermediateExits.map((x, idx) => (
@@ -1441,7 +1441,7 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                               '--'
                             )}
                           </td>
-                          <td className="py-0.5 px-1.5 whitespace-nowrap border-r border-slate-200 text-slate-700">
+                          <td className="py-1 px-1.5 whitespace-nowrap border-r border-slate-200 text-slate-700">
                             {rec.isAbsent ? (
                               '--'
                             ) : rec.entry2 && rec.exit2 ? (
@@ -1450,12 +1450,12 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                               '--'
                             )}
                           </td>
-                          <td className="py-0.5 px-1.5 text-right font-black border-r border-slate-200 whitespace-nowrap">
+                          <td className="py-1 px-1.5 text-right font-black border-r border-slate-200 whitespace-nowrap">
                             <span className={hasHours ? 'text-slate-900' : 'text-slate-400'}>
                               {hasHours ? `${rec.totalHours?.toFixed(2)} h` : '0.00 h'}
                             </span>
                           </td>
-                          <td className="py-0.5 px-1.5 text-right whitespace-nowrap border-r border-slate-200">
+                          <td className="py-1 px-1.5 text-right whitespace-nowrap border-r border-slate-200">
                             {hasHours ? (
                               <div>
                                 <span className="font-extrabold text-slate-900">
@@ -1469,7 +1469,7 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                               '--'
                             )}
                           </td>
-                          <td className="py-0.5 px-1.5 text-slate-500 italic truncate max-w-[170px]">
+                          <td className="py-1 px-1.5 text-slate-500 italic truncate max-w-[170px]">
                             {rec.isAbsent ? (
                               <span className="text-red-600 font-semibold not-italic">Falta</span>
                             ) : (
@@ -1481,7 +1481,7 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400 text-[9.5px]">
+                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400 text-[10px]">
                       <td colSpan={2} className="py-1 px-1.5 uppercase font-black text-slate-800 border-r border-slate-300">
                         TOTALES ({allDays.length} DÍAS):
                       </td>
@@ -1489,32 +1489,18 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                         {totalDeductedExitsHours > 0 ? `-${totalDeductedExitsHours.toFixed(2)} h salidas` : '--'}
                       </td>
                       <td className="py-1 px-1.5 border-r border-slate-300"></td>
-                      <td className="py-1 px-1.5 text-right font-black text-blue-800 text-[10.5px] border-r border-slate-300">
+                      <td className="py-1 px-1.5 text-right font-black text-blue-800 text-[11px] border-r border-slate-300">
                         {totalMonthHours.toFixed(2)} h
                       </td>
-                      <td className="py-1 px-1.5 text-right font-black text-emerald-900 text-[10.5px] border-r border-slate-300">
+                      <td className="py-1 px-1.5 text-right font-black text-emerald-900 text-[11px] border-r border-slate-300">
                         {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
                       </td>
-                      <td className="py-1 px-1.5 text-[8.5px] text-slate-700 font-bold">
+                      <td className="py-1 px-1.5 text-[9px] text-slate-700 font-bold">
                         {workedDaysCount} días con asistencia
                       </td>
                     </tr>
                   </tfoot>
                 </table>
-              </div>
-
-              {/* Signatures */}
-              <div className="pt-3 border-t border-slate-300 grid grid-cols-2 gap-8 text-center text-[9px] page-break-avoid">
-                <div>
-                  <div className="border-t border-slate-400 w-44 mx-auto mb-1"></div>
-                  <p className="font-extrabold text-slate-900 text-[10px]">{currentExEmp.name}</p>
-                  <p className="text-[8px] text-slate-500">Firma del Empleado</p>
-                </div>
-                <div>
-                  <div className="border-t border-slate-400 w-44 mx-auto mb-1"></div>
-                  <p className="font-extrabold text-slate-900 text-[10px]">Firma del Encargado / Empresa</p>
-                  <p className="text-[8px] text-slate-500">Conforme</p>
-                </div>
               </div>
             </div>
           </div>

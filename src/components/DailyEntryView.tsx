@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Employee, DailyTimeRecord, IntermediateExit } from '../types';
+import { Employee, DailyTimeRecord, IntermediateExit, DailyProductDeduction, CurrencyConfig } from '../types';
 import { 
   calculateDailyTotalHours, 
   calculateShiftHours, 
   calculateIntermediateExitsHours,
+  calculateDailyProductDeductionsTotal,
+  formatCurrencyWithSymbol,
   getRecordHoursSummary,
   formatHoursReadable, 
   formatDateFriendlySpanish, 
@@ -26,7 +28,8 @@ import {
   LogOut,
   LogIn,
   Users,
-  User
+  User,
+  ShoppingBag
 } from 'lucide-react';
 
 interface DailyEntryViewProps {
@@ -36,6 +39,7 @@ interface DailyEntryViewProps {
   records: DailyTimeRecord[];
   onUpdateRecord: (updatedRecord: DailyTimeRecord) => void;
   onFillAllDefault?: () => void;
+  currency?: CurrencyConfig;
 }
 
 export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
@@ -44,7 +48,8 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
   employees,
   records,
   onUpdateRecord,
-  onFillAllDefault
+  onFillAllDefault,
+  currency = { symbol: '₲', code: 'PYG' }
 }) => {
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string>('');
   const [employeeDays, setEmployeeDays] = useState<Record<string, number | string>>({});
@@ -282,6 +287,57 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
     });
   };
 
+  const handleAddProductDeduction = (emp: Employee) => {
+    const rec = getRecordForEmployee(emp);
+    const currentDeductions = rec.productDeductions ? [...rec.productDeductions] : [];
+    const newIdx = currentDeductions.length;
+    const newDeductions: DailyProductDeduction[] = [
+      ...currentDeductions,
+      {
+        id: `prod-${Date.now()}-${newIdx + 1}`,
+        description: '',
+        amount: 0
+      }
+    ];
+    onUpdateRecord({
+      ...rec,
+      productDeductions: newDeductions
+    });
+    triggerSaveToast(`Retiro de producto agregado para ${emp.name}`);
+    focusElement(`input-prod-desc-${emp.id}-${newIdx}`);
+  };
+
+  const handleRemoveProductDeduction = (emp: Employee, index: number) => {
+    const rec = getRecordForEmployee(emp);
+    const currentDeductions = rec.productDeductions ? [...rec.productDeductions] : [];
+    const newDeductions = currentDeductions.filter((_, i) => i !== index);
+    onUpdateRecord({
+      ...rec,
+      productDeductions: newDeductions
+    });
+  };
+
+  const handleProductDeductionFieldChange = (
+    emp: Employee,
+    index: number,
+    field: 'description' | 'amount',
+    val: string | number
+  ) => {
+    const rec = getRecordForEmployee(emp);
+    const currentDeductions = rec.productDeductions ? [...rec.productDeductions] : [];
+    const copy = [...currentDeductions];
+    if (copy[index]) {
+      copy[index] = {
+        ...copy[index],
+        [field]: field === 'amount' ? (val === '' ? 0 : Number(val)) : val
+      };
+      onUpdateRecord({
+        ...rec,
+        productDeductions: copy
+      });
+    }
+  };
+
   const handleClearRecord = (emp: Employee) => {
     const rec = getRecordForEmployee(emp);
     onUpdateRecord({
@@ -291,6 +347,7 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
       entry2: '',
       exit2: '',
       intermediateExits: [],
+      productDeductions: [],
       isAbsent: false,
       totalHours: 0
     });
@@ -632,6 +689,8 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
             const hoursSummary = getRecordHoursSummary(rec);
             const isCurrentDate = empTargetDate === dateStr;
             const exits = rec.intermediateExits || [];
+            const prodDeductions = rec.productDeductions || [];
+            const productDeductionsTotal = calculateDailyProductDeductionsTotal(prodDeductions);
 
             return (
               <div
@@ -947,7 +1006,106 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                         })}
                       </div>
                     )}
-                  </div>
+                    </div>
+
+                    {/* SECCIÓN RETIRO DE PRODUCTOS / VALES (DESCUENTO DE SUELDO) */}
+                    <div className="space-y-2.5 pt-2 border-t border-slate-100">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-rose-900 flex items-center gap-1.5">
+                            <ShoppingBag className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Retiro de Productos (Descontar del Salario)</span>
+                          </span>
+                          {productDeductionsTotal > 0 && (
+                            <span className="text-[10px] font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full border border-rose-200">
+                              Descuento: -{formatCurrencyWithSymbol(productDeductionsTotal, currency.symbol, currency.code)}
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleAddProductDeduction(emp)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                          title="Agregar un producto que retiró el empleado para descontar de su sueldo"
+                        >
+                          <Plus className="w-3.5 h-3.5 text-rose-700" />
+                          <span>+ Retiro / Producto</span>
+                        </button>
+                      </div>
+
+                      {/* Product deductions list */}
+                      {prodDeductions.length > 0 && (
+                        <div className="space-y-2">
+                          {prodDeductions.map((prod, idx) => (
+                            <div
+                              key={prod.id || idx}
+                              className="bg-rose-50/50 p-3 rounded-xl border border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5"
+                            >
+                              <div className="flex items-center gap-2">
+                                <span className="w-5 h-5 rounded-full bg-rose-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                                  {idx + 1}
+                                </span>
+                                <span className="text-xs font-bold text-rose-900 whitespace-nowrap">
+                                  Producto #{idx + 1}:
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 flex-1 max-w-lg">
+                                <div>
+                                  <label className="block text-[10px] font-bold text-rose-900 mb-0.5">
+                                    ¿Qué producto llevó? (Descripción) *
+                                  </label>
+                                  <input
+                                    id={`input-prod-desc-${emp.id}-${idx}`}
+                                    type="text"
+                                    value={prod.description || ''}
+                                    onChange={(e) => handleProductDeductionFieldChange(emp, idx, 'description', e.target.value)}
+                                    className="w-full px-2.5 py-1 bg-white border border-rose-300 rounded-lg text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                                    placeholder="Ej: Bolsa de azúcar, Almuerzo, Repuesto..."
+                                  />
+                                </div>
+
+                                <div>
+                                  <label className="block text-[10px] font-bold text-rose-900 mb-0.5">
+                                    Suma a descontar ({currency.symbol}) *
+                                  </label>
+                                  <div className="relative">
+                                    <span className="absolute left-2.5 top-1 text-xs font-bold text-slate-400">
+                                      {currency.symbol}
+                                    </span>
+                                    <input
+                                      id={`input-prod-amt-${emp.id}-${idx}`}
+                                      type="number"
+                                      min="0"
+                                      step="any"
+                                      value={prod.amount || ''}
+                                      onChange={(e) => handleProductDeductionFieldChange(emp, idx, 'amount', e.target.value)}
+                                      className="w-full pl-7 pr-2.5 py-1 bg-white border border-rose-300 rounded-lg text-xs font-black text-rose-700 focus:ring-2 focus:ring-rose-500 focus:outline-none"
+                                      placeholder="0"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-end gap-2 shrink-0">
+                                <span className="text-xs font-black text-rose-700 bg-rose-100 border border-rose-200 px-2 py-1 rounded-md">
+                                  -{formatCurrencyWithSymbol(prod.amount || 0, currency.symbol, currency.code)}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveProductDeduction(emp, idx)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
+                                  title="Eliminar retiro de producto"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                   {/* Summary & Notes Row with prominent Guardar Horas Button */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
@@ -972,9 +1130,20 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                         </div>
                       )}
 
+                      {productDeductionsTotal > 0 && (
+                        <div className="bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl text-right">
+                          <span className="text-[10px] text-rose-600 block leading-tight font-bold uppercase">
+                            Descuento Productos:
+                          </span>
+                          <span className="text-xs font-black text-rose-700">
+                            -{formatCurrencyWithSymbol(productDeductionsTotal, currency.symbol, currency.code)}
+                          </span>
+                        </div>
+                      )}
+
                       <div className="bg-slate-100 border border-slate-200 px-3.5 py-1.5 rounded-xl">
                         <span className="text-[10px] text-slate-500 block leading-tight font-bold uppercase">
-                          Total Neto:
+                          Total Horas Netas:
                         </span>
                         <span className="text-base font-black text-blue-700">
                           {(rec.totalHours || 0).toFixed(2)} h ({formatHoursReadable(rec.totalHours || 0)})

@@ -13,6 +13,13 @@ export interface TimeInterval {
   label?: string; // e.g. "Mañana 1", "Salida intermedia", "Turno tarde"
 }
 
+export interface DailyProductDeduction {
+  id?: string;
+  description: string; // ej. "Bolsa de azúcar", "Almuerzo", "Repuesto", "Retiro mercadería"
+  amount: number;      // suma o monto de dinero a descontar del sueldo
+  time?: string;       // opcional ej. "10:30"
+}
+
 export interface DailyTimeRecord {
   id: string; // unique record ID or composite `${employeeId}-${dateStr}`
   employeeId: string;
@@ -23,8 +30,10 @@ export interface DailyTimeRecord {
   // Turno 2 (Tarde)
   entry2: string; // "HH:MM" e.g. "14:00" or ""
   exit2: string;  // "HH:MM" e.g. "18:00" or ""
-  // Salidas intermedias que se descuentan del total del día
+  // Salidas intermedias que se descuentan del total de horas del día
   intermediateExits?: IntermediateExit[];
+  // Retiro de productos o compras del día que se descuentan del sueldo a cobrar
+  productDeductions?: DailyProductDeduction[];
   // Flexible multiple intervals
   intervals?: TimeInterval[];
   // State

@@ -316,6 +316,7 @@ export default function App() {
                 setDateStr={setDateStr}
                 employees={employees}
                 records={records}
+                currency={currency}
                 onUpdateRecord={handleUpdateRecord}
               />
             )}

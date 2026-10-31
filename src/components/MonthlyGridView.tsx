@@ -277,13 +277,20 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
   let totalGrossHours = 0;
   let totalDeductedExitsHours = 0;
   let totalIntermediateExitsCount = 0;
+  let totalProductDeductionsPeriod = 0;
   let workedDaysCount = 0;
   let absentDaysCount = 0;
-  let estimatedPay = 0;
+  let estimatedGrossPay = 0;
   const ratesBreakdown: Record<number, { rate: number; hours: number; subtotal: number }> = {};
 
   displayedDays.forEach(dateStr => {
     const rec = getRecordForDate(dateStr);
+    if (rec.productDeductions && rec.productDeductions.length > 0) {
+      rec.productDeductions.forEach(p => {
+        totalProductDeductionsPeriod += Number(p.amount) || 0;
+      });
+    }
+
     if (rec.isAbsent) {
       absentDaysCount++;
     } else {
@@ -299,7 +306,7 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
 
         const dayRate = getEmployeeRateForDate(employee, dateStr);
         const daySubtotal = rec.totalHours * dayRate;
-        estimatedPay += daySubtotal;
+        estimatedGrossPay += daySubtotal;
 
         if (!ratesBreakdown[dayRate]) {
           ratesBreakdown[dayRate] = { rate: dayRate, hours: 0, subtotal: 0 };
@@ -309,6 +316,8 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
       }
     }
   });
+
+  const estimatedPay = Math.max(0, estimatedGrossPay - totalProductDeductionsPeriod);
 
   const rateBreakdownList = Object.values(ratesBreakdown).sort((a, b) => a.rate - b.rate);
   const hasMultipleRatesInMonth = rateBreakdownList.length > 1;
@@ -651,6 +660,11 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
             <p className="text-xl sm:text-2xl font-black tracking-tight">
               {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
             </p>
+            {totalProductDeductionsPeriod > 0 && (
+              <p className="text-[10px] text-rose-200 font-bold">
+                (Bruto: {formatCurrencyWithSymbol(estimatedGrossPay, currency.symbol, currency.code)} - Productos: -{formatCurrencyWithSymbol(totalProductDeductionsPeriod, currency.symbol, currency.code)})
+              </p>
+            )}
             {hasMultipleRatesInPeriod ? (
               <div className="mt-0.5 space-y-0.5">
                 <p className="text-[10px] text-blue-100 font-medium truncate" title={rateBreakdownList.map(r => `${r.hours.toFixed(1)}h a ${formatCurrencyWithSymbol(r.rate, currency.symbol, currency.code)}`).join(' + ')}>
@@ -876,6 +890,23 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                           <p className="text-[9px] text-slate-500 font-semibold leading-none mt-0.5">
                             {formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h
                           </p>
+                          {rec.productDeductions && rec.productDeductions.length > 0 && (
+                            <div className="mt-0.5 space-y-0.5">
+                              {rec.productDeductions.map((p, pIdx) => (
+                                <span key={pIdx} className="block text-[8.5px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0 rounded">
+                                  🛒 {p.description || 'Producto'}: -{formatCurrencyWithSymbol(p.amount || 0, currency.symbol, currency.code)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : rec.productDeductions && rec.productDeductions.length > 0 ? (
+                        <div className="leading-tight">
+                          {rec.productDeductions.map((p, pIdx) => (
+                            <span key={pIdx} className="block text-[8.5px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1 py-0 rounded">
+                              🛒 {p.description || 'Producto'}: -{formatCurrencyWithSymbol(p.amount || 0, currency.symbol, currency.code)}
+                            </span>
+                          ))}
                         </div>
                       ) : (
                         <span className="text-slate-300 text-xs leading-none">-</span>
@@ -1260,14 +1291,16 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
           <style>{`
             @page {
               size: A4 portrait;
-              margin: 5mm 7mm;
+              margin: 5mm 6mm;
             }
             @media print {
               html, body {
                 width: 210mm !important;
                 height: 297mm !important;
+                max-height: 297mm !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                overflow: hidden !important;
                 background: white !important;
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
@@ -1285,11 +1318,12 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                 width: 100% !important;
                 max-width: 100% !important;
                 margin: 0 !important;
-                padding: 4mm 6mm !important;
+                padding: 5mm 6mm !important;
                 background: white !important;
-                font-size: 8.5pt !important;
-                line-height: 1.15 !important;
                 box-sizing: border-box !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                page-break-after: avoid !important;
               }
               .no-print, .print\\:hidden {
                 display: none !important;
@@ -1312,7 +1346,7 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                   <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
                     <span>Generar PDF / Imprimir Planilla</span>
                     <span className="text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                      Formato A4 (1 Hoja)
+                      Formato A4 (1 Sola Hoja)
                     </span>
                   </h3>
                   <p className="text-xs text-slate-400">
@@ -1341,13 +1375,13 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
               </div>
             </div>
 
-            {/* Printable Document Body - Fits perfectly in A4 */}
+            {/* Printable Document Body - Fits perfectly in 1 single A4 sheet */}
             <div
               id="printable-a4-monthly-grid"
               className="p-4 sm:p-6 overflow-y-auto space-y-3 bg-white text-slate-800 font-sans text-xs"
             >
               {/* Document Header */}
-              <div className="border-b-2 border-slate-900 pb-2.5 flex items-start justify-between gap-3 page-break-avoid">
+              <div className="border-b-2 border-slate-900 pb-2 flex items-start justify-between gap-3 page-break-avoid">
                 <div>
                   <span className="text-[9px] font-black uppercase tracking-widest text-blue-700 block">
                     CONTROL DE ASISTENCIA Y LIQUIDACIÓN HORARIA
@@ -1425,7 +1459,9 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                     {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
                   </p>
                   <p className="text-[8.5px] text-emerald-700 font-semibold truncate">
-                    {hasMultipleRatesInPeriod
+                    {totalProductDeductionsPeriod > 0
+                      ? `-Desc. Prod: ${formatCurrencyWithSymbol(totalProductDeductionsPeriod, currency.symbol, currency.code)}`
+                      : hasMultipleRatesInPeriod
                       ? 'Tarifa escalonada'
                       : `${formatCurrencyWithSymbol(employee.hourlyRate, currency.symbol, currency.code)}/h`}
                   </p>
@@ -1442,18 +1478,18 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                 </div>
               )}
 
-              {/* Detailed Days Table (identical to the App, no action column) */}
+              {/* Detailed Days Table (clean, comfortable rows, perfectly fitting 1 page) */}
               <div className="border border-slate-300 rounded-lg overflow-hidden page-break-avoid">
-                <table className="w-full text-left border-collapse text-[9px] leading-tight">
+                <table className="w-full text-left border-collapse leading-tight">
                   <thead>
-                    <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 uppercase text-[8.5px]">
-                      <th className="py-1 px-1.5 border-r border-slate-200">Fecha y Día</th>
-                      <th className="py-1 px-1.5 border-r border-slate-200">1er Turno (Mañana)</th>
-                      <th className="py-1 px-1.5 border-r border-slate-200">Salidas Intermedias</th>
-                      <th className="py-1 px-1.5 border-r border-slate-200">2do Turno (Tarde)</th>
-                      <th className="py-1 px-1.5 text-right border-r border-slate-200">Total Horas</th>
-                      <th className="py-1 px-1.5 text-right border-r border-slate-200">Tarifa / Subtotal</th>
-                      <th className="py-1 px-1.5">Estado / Observaciones</th>
+                    <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 uppercase text-[9px]">
+                      <th className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} border-r border-slate-200`}>Fecha y Día</th>
+                      <th className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} border-r border-slate-200`}>1er Turno (Mañana)</th>
+                      <th className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} border-r border-slate-200`}>Salidas Intermedias</th>
+                      <th className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} border-r border-slate-200`}>2do Turno (Tarde)</th>
+                      <th className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} text-right border-r border-slate-200`}>Total Horas</th>
+                      <th className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} text-right border-r border-slate-200`}>Tarifa / Subtotal</th>
+                      <th className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'}`}>Estado / Observaciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -1464,16 +1500,18 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                       const dayRate = getEmployeeRateForDate(employee, dateStr);
                       const dayHours = rec.totalHours || 0;
                       const daySubtotal = dayHours * dayRate;
+                      const isLongMonth = displayedDays.length > 20;
+                      const rowPadClass = isLongMonth ? 'py-1 px-1.5 text-[9px]' : 'py-2 px-2 text-[10px]';
 
                       return (
                         <tr
                           key={dateStr}
                           className={sunday ? 'bg-amber-50/25' : rec.isAbsent ? 'bg-red-50/30' : 'hover:bg-slate-50'}
                         >
-                          <td className="py-0.5 px-1.5 font-bold whitespace-nowrap border-r border-slate-200">
+                          <td className={`${rowPadClass} font-bold whitespace-nowrap border-r border-slate-200`}>
                             {formatDateShortSpanish(dateStr)} {sunday && <span className="text-amber-800 text-[8px] font-bold">(Dom)</span>}
                           </td>
-                          <td className="py-0.5 px-1.5 whitespace-nowrap border-r border-slate-200 text-slate-700">
+                          <td className={`${rowPadClass} whitespace-nowrap border-r border-slate-200 text-slate-700`}>
                             {rec.isAbsent ? (
                               <span className="text-red-600 font-semibold italic">Ausente</span>
                             ) : rec.entry1 && rec.exit1 ? (
@@ -1482,7 +1520,7 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                               '--'
                             )}
                           </td>
-                          <td className="py-0.5 px-1.5 border-r border-slate-200 text-slate-700">
+                          <td className={`${rowPadClass} border-r border-slate-200 text-slate-700`}>
                             {exits.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
                                 {exits.map((x, idx) => (
@@ -1495,7 +1533,7 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                               '--'
                             )}
                           </td>
-                          <td className="py-0.5 px-1.5 whitespace-nowrap border-r border-slate-200 text-slate-700">
+                          <td className={`${rowPadClass} whitespace-nowrap border-r border-slate-200 text-slate-700`}>
                             {rec.isAbsent ? (
                               '--'
                             ) : rec.entry2 && rec.exit2 ? (
@@ -1504,12 +1542,12 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                               '--'
                             )}
                           </td>
-                          <td className="py-0.5 px-1.5 text-right font-black border-r border-slate-200 whitespace-nowrap">
+                          <td className={`${rowPadClass} text-right font-black border-r border-slate-200 whitespace-nowrap`}>
                             <span className={dayHours > 0 ? 'text-slate-900' : 'text-slate-400'}>
                               {dayHours > 0 ? `${dayHours.toFixed(2)} h` : '0.00 h'}
                             </span>
                           </td>
-                          <td className="py-0.5 px-1.5 text-right whitespace-nowrap border-r border-slate-200">
+                          <td className={`${rowPadClass} text-right whitespace-nowrap border-r border-slate-200`}>
                             {dayHours > 0 ? (
                               <div>
                                 <span className="font-extrabold text-slate-900">
@@ -1518,12 +1556,21 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                                 <span className="text-[8px] text-slate-500 block leading-none">
                                   ({formatCurrencyWithSymbol(dayRate, currency.symbol, currency.code)}/h)
                                 </span>
+                                {rec.productDeductions && rec.productDeductions.length > 0 && (
+                                  <span className="text-[7.5px] text-rose-700 font-bold block leading-none mt-0.5">
+                                    🛒 -{formatCurrencyWithSymbol(rec.productDeductions.reduce((s, p) => s + (Number(p.amount) || 0), 0), currency.symbol, currency.code)}
+                                  </span>
+                                )}
                               </div>
+                            ) : rec.productDeductions && rec.productDeductions.length > 0 ? (
+                              <span className="text-[7.5px] text-rose-700 font-bold block leading-none">
+                                🛒 -{formatCurrencyWithSymbol(rec.productDeductions.reduce((s, p) => s + (Number(p.amount) || 0), 0), currency.symbol, currency.code)}
+                              </span>
                             ) : (
                               '--'
                             )}
                           </td>
-                          <td className="py-0.5 px-1.5 text-slate-500 italic truncate max-w-[170px]">
+                          <td className={`${rowPadClass} text-slate-500 italic truncate max-w-[170px]`}>
                             {rec.isAbsent ? (
                               <span className="text-red-600 font-semibold not-italic">Falta injustificada</span>
                             ) : rec.notes ? (
@@ -1537,40 +1584,26 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400 text-[9.5px]">
-                      <td colSpan={2} className="py-1 px-1.5 uppercase font-black text-slate-800 border-r border-slate-300">
+                    <tr className="bg-slate-100 font-extrabold text-slate-900 border-t-2 border-slate-400 text-[10px]">
+                      <td colSpan={2} className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} uppercase font-black text-slate-800 border-r border-slate-300`}>
                         TOTALES ({displayedDays.length} DÍAS):
                       </td>
-                      <td className="py-1 px-1.5 text-amber-800 font-bold border-r border-slate-300">
+                      <td className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} text-amber-800 font-bold border-r border-slate-300`}>
                         {totalDeductedExitsHours > 0 ? `-${totalDeductedExitsHours.toFixed(2)} h salidas` : '--'}
                       </td>
-                      <td className="py-1 px-1.5 border-r border-slate-300"></td>
-                      <td className="py-1 px-1.5 text-right font-black text-blue-800 text-[10.5px] border-r border-slate-300">
+                      <td className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} border-r border-slate-300`}></td>
+                      <td className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} text-right font-black text-blue-800 text-[11px] border-r border-slate-300`}>
                         {totalPeriodHours.toFixed(2)} h
                       </td>
-                      <td className="py-1 px-1.5 text-right font-black text-emerald-900 text-[10.5px] border-r border-slate-300">
+                      <td className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} text-right font-black text-emerald-900 text-[11px] border-r border-slate-300`}>
                         {formatCurrencyWithSymbol(estimatedPay, currency.symbol, currency.code)}
                       </td>
-                      <td className="py-1 px-1.5 text-[8.5px] text-slate-700 font-bold">
+                      <td className={`${displayedDays.length > 20 ? 'py-1 px-1.5' : 'py-1.5 px-2'} text-[9px] text-slate-700 font-bold`}>
                         {workedDaysCount} días con asistencia
                       </td>
                     </tr>
                   </tfoot>
                 </table>
-              </div>
-
-              {/* Signatures Section */}
-              <div className="pt-3 border-t border-slate-300 grid grid-cols-2 gap-8 text-center text-[9px] page-break-avoid">
-                <div>
-                  <div className="border-t border-slate-400 w-44 mx-auto mb-1"></div>
-                  <p className="font-extrabold text-slate-900 text-[10px]">{employee.name}</p>
-                  <p className="text-[8px] text-slate-500">Firma del Empleado / Conforme</p>
-                </div>
-                <div>
-                  <div className="border-t border-slate-400 w-44 mx-auto mb-1"></div>
-                  <p className="font-extrabold text-slate-900 text-[10px]">Administración / Empleador</p>
-                  <p className="text-[8px] text-slate-500">Aprobado y Verificado</p>
-                </div>
               </div>
             </div>
           </div>

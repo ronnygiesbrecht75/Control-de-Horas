@@ -1,6 +1,6 @@
 {
-  "version": "1.6.0",
-  "buildDate": "2026-10-31T07:24:00Z",
-  "description": "Versión 1.6.0: Rango de fechas flexible en Planilla Mensual (1ª y 2ª Quincena, Mes y Personalizado), Generación de PDF optimizado en 1 sola hoja A4 con resumen de KPIs de 5 métricas (fechas del rango, total horas netas, días trabajados, salidas intermedias y monto total), pestaña de Ex Empleados con historial de aumentos y fechas de ingreso/salida, y soporte para cualquier monto de tarifa horaria."
+  "version": "1.7",
+  "buildDate": "2026-10-31T07:35:00Z",
+  "description": "Versión 1.7: Registro de retiros de productos con monto y descripción en Carga Diaria con descuento automático del salario a cobrar, rango de fechas en Planilla Mensual, exportación de PDF de 1 hoja A4 con KPIs, y pestaña de Ex Empleados con tarifas y aumentos."
 }
 

@@ -1,4 +1,4 @@
-import { SettlementPeriodConfig, Employee, HourlyRateEntry, TimeInterval, DailyTimeRecord, IntermediateExit } from '../types';
+import { SettlementPeriodConfig, Employee, HourlyRateEntry, TimeInterval, DailyTimeRecord, IntermediateExit, DailyProductDeduction } from '../types';
 
 /**
  * Convert time string "HH:MM" to total minutes from midnight.
@@ -45,6 +45,14 @@ export function calculateIntermediateExitsHours(exits?: IntermediateExit[]): num
     }
   }
   return Number(total.toFixed(2));
+}
+
+/**
+ * Calculate total monetary amount of product withdrawals / deductions for a day
+ */
+export function calculateDailyProductDeductionsTotal(deductions?: DailyProductDeduction[]): number {
+  if (!deductions || deductions.length === 0) return 0;
+  return deductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 }
 
 /**

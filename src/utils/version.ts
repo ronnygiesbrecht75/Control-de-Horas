@@ -1,4 +1,4 @@
-export const APP_VERSION = '1.10';
+export const APP_VERSION = '1.11';
 export const APP_BUILD_DATE = '2026-11-05';
 export const GITHUB_REPO_URL = 'https://github.com/ronnygiesbrecht75/control-de-horas';
 export const GITHUB_RELEASES_URL = `${GITHUB_REPO_URL}/releases`;

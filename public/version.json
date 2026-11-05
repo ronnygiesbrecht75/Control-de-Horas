@@ -1,6 +1,5 @@
 {
-  "version": "1.10",
-  "buildDate": "2026-11-05T13:33:00Z",
-  "description": "Versión 1.10: Soporte completo de inicio de sesión con usuario y contraseña, compatibilidad corregida en Electron para Windows sin pantallas en negro, actualizador automático y portal móvil exclusivo para marcaciones de empleados."
+  "version": "1.11",
+  "buildDate": "2026-11-05T13:50:00Z",
+  "description": "Versión 1.11: Sincronización automática en la nube PC ↔ PWA Celular, validación remota de Clave de Licencia de empleados, marcador con foto facial y compatibilidad completa con Windows."
 }
-

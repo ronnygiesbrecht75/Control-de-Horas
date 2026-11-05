@@ -11,7 +11,8 @@ import {
   Coffee, 
   Sun, 
   Moon,
-  ArrowLeft
+  ArrowLeft,
+  Loader2
 } from 'lucide-react';
 import { 
   getTodayDateStr, 
@@ -19,6 +20,11 @@ import {
   formatDateFriendlySpanish 
 } from '../utils/timeUtils';
 import { FaceCameraModal } from './FaceCameraModal';
+import { 
+  verifyLicenseWithCloud, 
+  syncPunchToCloud, 
+  fetchCloudState 
+} from '../utils/syncService';
 
 interface EmployeeMobilePortalProps {
   employees: Employee[];
@@ -48,6 +54,7 @@ export const EmployeeMobilePortal: React.FC<EmployeeMobilePortalProps> = ({
   const [inputLicense, setInputLicense] = useState(initialLicenseParam || '');
   const [activationError, setActivationError] = useState<string | null>(null);
   const [activationSuccess, setActivationSuccess] = useState<string | null>(null);
+  const [isValidatingCloud, setIsValidatingCloud] = useState<boolean>(false);
 
   // Current time state
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -75,6 +82,21 @@ export const EmployeeMobilePortal: React.FC<EmployeeMobilePortalProps> = ({
   const activeEmployee = employees.find(
     emp => emp.active && emp.licenseKey && emp.licenseKey.trim().toUpperCase() === storedLicense.trim().toUpperCase()
   );
+
+  // Auto-restore employee from cloud if phone already had a license stored but local database is clean
+  useEffect(() => {
+    if (storedLicense && !activeEmployee && !isValidatingCloud) {
+      setIsValidatingCloud(true);
+      verifyLicenseWithCloud(storedLicense)
+        .then(result => {
+          if (result.valid && result.employee) {
+            onUpdateEmployee(result.employee);
+          }
+        })
+        .catch(err => console.debug('Auto-restore employee error:', err))
+        .finally(() => setIsValidatingCloud(false));
+    }
+  }, [storedLicense, activeEmployee]);
 
   const todayStr = getTodayDateStr();
 
@@ -106,8 +128,8 @@ export const EmployeeMobilePortal: React.FC<EmployeeMobilePortalProps> = ({
     totalHours: 0
   };
 
-  // Handle License Activation
-  const handleActivateLicense = (e?: React.FormEvent, directKey?: string) => {
+  // Handle License Activation (checks local + Cloud verification)
+  const handleActivateLicense = async (e?: React.FormEvent, directKey?: string) => {
     if (e) e.preventDefault();
     setActivationError(null);
     setActivationSuccess(null);
@@ -120,8 +142,8 @@ export const EmployeeMobilePortal: React.FC<EmployeeMobilePortalProps> = ({
 
     const cleanKey = rawKey.toUpperCase();
 
-    // Flexible match: exact license, without LIC- prefix, or by partial match
-    const matchedEmp = employees.find(emp => {
+    // 1. First attempt flexible local match
+    let matchedEmp = employees.find(emp => {
       if (!emp.licenseKey) return false;
       const empKey = emp.licenseKey.trim().toUpperCase();
       if (empKey === cleanKey) return true;
@@ -130,9 +152,28 @@ export const EmployeeMobilePortal: React.FC<EmployeeMobilePortalProps> = ({
       return false;
     });
 
+    // 2. If not found locally (e.g. employee was registered on PC and this is the mobile PWA),
+    // query the cloud database!
     if (!matchedEmp) {
-      setActivationError('Clave de Licencia no válida. Verifique que el empleado esté registrado.');
-      return;
+      setIsValidatingCloud(true);
+      try {
+        const cloudRes = await verifyLicenseWithCloud(cleanKey);
+        if (cloudRes.valid && cloudRes.employee) {
+          matchedEmp = cloudRes.employee;
+        } else {
+          setActivationError(
+            cloudRes.error || 'Clave de Licencia no válida. Verifique que el empleado esté registrado.'
+          );
+          setIsValidatingCloud(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error verifying license with cloud:', err);
+        setActivationError('No se pudo verificar la clave en el servidor. Revise su conexión a internet.');
+        setIsValidatingCloud(false);
+        return;
+      }
+      setIsValidatingCloud(false);
     }
 
     if (!matchedEmp.active) {
@@ -260,8 +301,12 @@ export const EmployeeMobilePortal: React.FC<EmployeeMobilePortalProps> = ({
       updatedRecord.intervals
     );
     updatedRecord.totalHours = netHours;
-
     onUpdateRecord(updatedRecord);
+
+    // Sync punch with photo to cloud so PC sees the punch immediately
+    syncPunchToCloud(updatedRecord).catch(err => {
+      console.debug('Background cloud punch sync issue:', err);
+    });
 
     // Show toast
     setToastPhoto(photoBase64);
@@ -355,11 +400,21 @@ export const EmployeeMobilePortal: React.FC<EmployeeMobilePortalProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-2xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isValidatingCloud}
+                className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-black text-sm rounded-2xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <ShieldCheck className="w-4 h-4" />
-                <span>Abrir Marcador</span>
-                <ArrowRight className="w-4 h-4" />
+                {isValidatingCloud ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Verificando en la Nube...</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Abrir Marcador</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </form>
 

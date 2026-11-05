@@ -40,6 +40,11 @@ import { SidebarNav } from './components/SidebarNav';
 import { LoginScreen } from './components/LoginScreen';
 import { AutoUpdater } from './components/AutoUpdater';
 import { EmployeeMobilePortal } from './components/EmployeeMobilePortal';
+import { 
+  syncEmployeesToCloud, 
+  syncRecordsToCloud, 
+  fetchCloudState 
+} from './utils/syncService';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(() => {
@@ -68,13 +73,19 @@ export default function App() {
     }
   }, [employees, selectedEmployeeId]);
 
-  // Persist whenever changes occur
+  // Persist and auto-sync whenever changes occur
   useEffect(() => {
     saveEmployeesToStorage(employees);
+    if (employees.length > 0) {
+      syncEmployeesToCloud(employees).catch(err => console.debug('Sync employees error:', err));
+    }
   }, [employees]);
 
   useEffect(() => {
     saveRecordsToStorage(records);
+    if (records.length > 0) {
+      syncRecordsToCloud(records).catch(err => console.debug('Sync records error:', err));
+    }
   }, [records]);
 
   useEffect(() => {
@@ -84,6 +95,69 @@ export default function App() {
   useEffect(() => {
     saveCurrencyToStorage(currency);
   }, [currency]);
+
+  // Pull latest updates from Cloud (employee device punches or web registrations)
+  useEffect(() => {
+    const pullCloudUpdates = async () => {
+      try {
+        const cloudData = await fetchCloudState();
+        if (cloudData) {
+          // Merge employees if cloud has extra ones or newly linked devices
+          if (cloudData.employees && cloudData.employees.length > 0) {
+            setEmployees(prev => {
+              if (prev.length === 0) return cloudData.employees;
+              const map = new Map<string, Employee>(prev.map(e => [e.id, e]));
+              let hasChanges = false;
+              cloudData.employees.forEach(ce => {
+                if (!map.has(ce.id)) {
+                  map.set(ce.id, ce);
+                  hasChanges = true;
+                } else {
+                  const ex = map.get(ce.id);
+                  if (ex && ce.deviceLinked && !ex.deviceLinked) {
+                    map.set(ce.id, { ...ex, deviceLinked: true, deviceLinkedAt: ce.deviceLinkedAt });
+                    hasChanges = true;
+                  }
+                }
+              });
+              return hasChanges ? Array.from(map.values()) : prev;
+            });
+          }
+
+          // Merge records (especially punches captured on mobile devices)
+          if (cloudData.records && cloudData.records.length > 0) {
+            setRecords(prev => {
+              if (prev.length === 0) return cloudData.records;
+              const map = new Map<string, DailyTimeRecord>(prev.map(r => [`${r.employeeId}_${r.dateStr}`, r]));
+              let hasChanges = false;
+              cloudData.records.forEach(cr => {
+                const key = `${cr.employeeId}_${cr.dateStr}`;
+                const ex = map.get(key);
+                if (!ex) {
+                  map.set(key, cr);
+                  hasChanges = true;
+                } else {
+                  const cloudPunchesCount = cr.punches?.length || 0;
+                  const localPunchesCount = ex.punches?.length || 0;
+                  if (cloudPunchesCount > localPunchesCount || (cr.totalHours && !ex.totalHours)) {
+                    map.set(key, { ...ex, ...cr });
+                    hasChanges = true;
+                  }
+                }
+              });
+              return hasChanges ? Array.from(map.values()) : prev;
+            });
+          }
+        }
+      } catch (err) {
+        console.debug('Background cloud pull error:', err);
+      }
+    };
+
+    pullCloudUpdates();
+    const interval = setInterval(pullCloudUpdates, 20000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Update a single DailyTimeRecord
   const handleUpdateRecord = (updatedRecord: DailyTimeRecord) => {

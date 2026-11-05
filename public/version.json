@@ -1,6 +1,6 @@
 {
-  "version": "1.9",
-  "buildDate": "2026-11-05T13:10:00Z",
-  "description": "Versión 1.9: Actualizador del sistema optimizado para PC y Web con verificación de versiones en la nube y GitHub Releases, portal móvil para empleados con foto de verificación facial y enlaces directos para WhatsApp y QR."
+  "version": "1.10",
+  "buildDate": "2026-11-05T13:33:00Z",
+  "description": "Versión 1.10: Soporte completo de inicio de sesión con usuario y contraseña, compatibilidad corregida en Electron para Windows sin pantallas en negro, actualizador automático y portal móvil exclusivo para marcaciones de empleados."
 }
 

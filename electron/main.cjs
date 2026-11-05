@@ -12,10 +12,11 @@ function createWindow() {
     title: 'Control de Horas',
     autoHideMenuBar: false,
     webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      webSecurity: true,
-      sandbox: true
+      nodeIntegration: true,
+      contextIsolation: false,
+      webSecurity: false,
+      sandbox: false,
+      allowRunningInsecureContent: true
     }
   });
 
@@ -61,7 +62,9 @@ function createWindow() {
         { label: 'Aumentar zoom', role: 'zoomIn' },
         { label: 'Reducir zoom', role: 'zoomOut' },
         { type: 'separator' },
-        { label: 'Pantalla completa', role: 'togglefullscreen' }
+        { label: 'Pantalla completa', role: 'togglefullscreen' },
+        { type: 'separator' },
+        { label: 'Herramientas de Desarrollador', role: 'toggleDevTools' }
       ]
     }
   ];

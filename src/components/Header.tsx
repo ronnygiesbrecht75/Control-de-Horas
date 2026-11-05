@@ -19,11 +19,12 @@ import {
   ArrowUpCircle,
   Globe,
   Check,
-  Smartphone
+  Smartphone,
+  ExternalLink
 } from 'lucide-react';
 import { formatMonthSpanish, createWhatsAppShareUrl } from '../utils/timeUtils';
 import { loadEmployeesFromStorage } from '../data/mockData';
-import { APP_VERSION, checkForAppUpdates, applyAppUpdate } from '../utils/version';
+import { APP_VERSION, checkForAppUpdates, applyAppUpdate, CheckUpdateResult, GITHUB_RELEASES_URL } from '../utils/version';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -53,7 +54,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [importError, setImportError] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
-  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'latest' | 'available'>('idle');
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'latest' | 'available' | 'error'>('idle');
+  const [updateInfo, setUpdateInfo] = useState<CheckUpdateResult | null>(null);
   const [newVersionFound, setNewVersionFound] = useState<string>('');
 
   // WhatsApp modal state with Spanish & German support
@@ -328,13 +330,17 @@ export const Header: React.FC<HeaderProps> = ({
                   <button
                     onClick={async () => {
                       setUpdateStatus('checking');
-                      const res = await checkForAppUpdates();
-                      if (res.hasUpdate) {
-                        setUpdateStatus('available');
-                        setNewVersionFound(res.latestVersion || '');
-                      } else {
-                        setUpdateStatus('latest');
-                        setTimeout(() => setUpdateStatus('idle'), 3000);
+                      try {
+                        const res = await checkForAppUpdates();
+                        setUpdateInfo(res);
+                        setNewVersionFound(res.latestVersion || APP_VERSION);
+                        if (res.hasUpdate) {
+                          setUpdateStatus('available');
+                        } else {
+                          setUpdateStatus('latest');
+                        }
+                      } catch (err) {
+                        setUpdateStatus('error');
                       }
                     }}
                     disabled={updateStatus === 'checking'}
@@ -345,24 +351,97 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 </div>
 
-                {updateStatus === 'latest' && (
-                  <div className="mt-3 flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>La aplicación está al día con la última versión (v{APP_VERSION}).</span>
+                {/* Status: Checking in progress */}
+                {updateStatus === 'checking' && (
+                  <div className="mt-3 p-3 bg-slate-800/80 rounded-xl border border-slate-700/80 flex items-center gap-2 text-xs text-slate-300">
+                    <RefreshCw className="w-4 h-4 animate-spin text-orange-400" />
+                    <span>Consultando el servidor en la nube y GitHub Releases por nuevas versiones...</span>
                   </div>
                 )}
 
+                {/* Status: Already on the latest version */}
+                {updateStatus === 'latest' && (
+                  <div className="mt-3 p-3.5 bg-emerald-950/60 border border-emerald-500/40 rounded-xl space-y-2 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2 text-xs text-emerald-300 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Tu sistema está al día con la última versión (v{APP_VERSION}).</span>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-400 pt-1.5 border-t border-emerald-900/40">
+                      <span>Verificado {updateInfo?.checkedAt ? `hoy a las ${updateInfo.checkedAt}` : 'recientemente'}</span>
+                      <a
+                        href={GITHUB_RELEASES_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 underline flex items-center gap-1 font-semibold"
+                      >
+                        <span>Ver descargas de instaladores .EXE en GitHub</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status: New version available */}
                 {updateStatus === 'available' && (
-                  <div className="mt-3 p-2.5 bg-orange-950/60 border border-orange-500/40 rounded-lg flex items-center justify-between">
-                    <span className="text-xs text-orange-200 font-medium">
-                      ¡Nueva versión disponible (v{newVersionFound})!
-                    </span>
-                    <button
-                      onClick={() => applyAppUpdate()}
-                      className="px-2.5 py-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-md transition-colors"
-                    >
-                      Actualizar Ahora
-                    </button>
+                  <div className="mt-3 p-3.5 bg-gradient-to-br from-amber-950/80 to-orange-950/80 border border-orange-500/50 rounded-xl space-y-2.5 shadow-lg animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        <span className="text-xs font-bold text-orange-200">
+                          ¡Nueva versión disponible: v{newVersionFound}!
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-orange-500/30 text-orange-300 border border-orange-500/40 font-bold">
+                        v{newVersionFound}
+                      </span>
+                    </div>
+
+                    {updateInfo?.details && (
+                      <p className="text-[11px] text-slate-300 leading-snug">
+                        {updateInfo.details}
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        onClick={() => applyAppUpdate()}
+                        className="flex-1 px-3 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-bold rounded-lg shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        <span>Actualizar Web Ahora</span>
+                      </button>
+
+                      <a
+                        href={updateInfo?.downloadUrl || GITHUB_RELEASES_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg border border-slate-700 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 text-orange-400" />
+                        <span>Descargar .EXE para PC</span>
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* Status: Error connecting */}
+                {updateStatus === 'error' && (
+                  <div className="mt-3 p-3.5 bg-rose-950/60 border border-rose-800/80 rounded-xl space-y-2 text-xs text-rose-300 animate-in fade-in duration-200">
+                    <p className="font-semibold">
+                      No se pudo conectar directamente con el servidor de actualizaciones.
+                    </p>
+                    <div className="flex items-center justify-between pt-1 border-t border-rose-900/40">
+                      <span className="text-[11px] text-slate-400">Versión actual instalada: v{APP_VERSION}</span>
+                      <a
+                        href={GITHUB_RELEASES_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 underline flex items-center gap-1 font-semibold"
+                      >
+                        <span>Abrir lanzamientos en GitHub</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
                   </div>
                 )}
               </div>

@@ -43,8 +43,10 @@ import {
   Printer,
   FileText,
   Check,
-  CalendarDays
+  CalendarDays,
+  Camera
 } from 'lucide-react';
+import { PunchPhotoModal } from './PunchPhotoModal';
 
 interface MonthlyGridViewProps {
   monthStr: string;
@@ -71,6 +73,15 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
 }) => {
   const activeEmployees = employees.filter(e => e.active);
   const employee = employees.find(e => e.id === selectedEmployeeId) || activeEmployees[0] || employees[0];
+
+  // State for photo preview modal
+  const [photoModalData, setPhotoModalData] = useState<{
+    photoUrl: string;
+    employeeName: string;
+    punchLabel: string;
+    timeStr: string;
+    dateStr: string;
+  } | null>(null);
 
   // State for the editing popup / modal
   const [editingDateStr, setEditingDateStr] = useState<string | null>(null);
@@ -821,6 +832,22 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                               {calculateShiftHours(rec.entry1, rec.exit1).toFixed(2)}h
                             </span>
                           )}
+                          {(rec.entry1Photo || rec.exit1Photo) && (
+                            <button
+                              type="button"
+                              onClick={() => setPhotoModalData({
+                                photoUrl: (rec.entry1Photo || rec.exit1Photo)!,
+                                employeeName: employee?.name || 'Empleado',
+                                punchLabel: rec.entry1Photo ? 'Entrada Turno 1 (Mañana)' : 'Salida Turno 1 (Mañana)',
+                                timeStr: rec.entry1Photo ? rec.entry1 : rec.exit1,
+                                dateStr: dateStr
+                              })}
+                              className="text-blue-600 hover:text-blue-800 p-0.5 rounded cursor-pointer"
+                              title="Ver foto facial de verificación"
+                            >
+                              <Camera className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <span className="text-slate-300 text-xs leading-none">-</span>
@@ -840,6 +867,22 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                             <span className="text-[9px] text-slate-500 bg-slate-100 px-1 py-0 rounded leading-none font-bold">
                               {calculateShiftHours(rec.entry2, rec.exit2).toFixed(2)}h
                             </span>
+                          )}
+                          {(rec.entry2Photo || rec.exit2Photo) && (
+                            <button
+                              type="button"
+                              onClick={() => setPhotoModalData({
+                                photoUrl: (rec.entry2Photo || rec.exit2Photo)!,
+                                employeeName: employee?.name || 'Empleado',
+                                punchLabel: rec.entry2Photo ? 'Entrada Turno 2 (Tarde)' : 'Salida Turno 2 (Tarde)',
+                                timeStr: rec.entry2Photo ? rec.entry2 : rec.exit2,
+                                dateStr: dateStr
+                              })}
+                              className="text-blue-600 hover:text-blue-800 p-0.5 rounded cursor-pointer"
+                              title="Ver foto facial de verificación"
+                            >
+                              <Camera className="w-3 h-3" />
+                            </button>
                           )}
                         </div>
                       ) : (
@@ -864,6 +907,22 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                                 <span className="text-red-600 font-bold ml-0.5">
                                   (-{exitH.toFixed(2)}h)
                                 </span>
+                                {(item.exitPhoto || item.returnPhoto) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPhotoModalData({
+                                      photoUrl: (item.exitPhoto || item.returnPhoto)!,
+                                      employeeName: employee?.name || 'Empleado',
+                                      punchLabel: item.exitPhoto ? 'Salida Intermedia' : 'Regreso Intermedio',
+                                      timeStr: item.exitPhoto ? item.exitTime : item.returnTime,
+                                      dateStr: dateStr
+                                    })}
+                                    className="text-amber-700 hover:text-amber-900 cursor-pointer ml-0.5"
+                                    title="Ver foto facial de verificación"
+                                  >
+                                    <Camera className="w-3 h-3" />
+                                  </button>
+                                )}
                               </div>
                             );
                           })}
@@ -1668,6 +1727,18 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL PARA VER FOTO DE VERIFICACIÓN FACIAL */}
+      {photoModalData && (
+        <PunchPhotoModal
+          photoUrl={photoModalData.photoUrl}
+          employeeName={photoModalData.employeeName}
+          punchLabel={photoModalData.punchLabel}
+          timeStr={photoModalData.timeStr}
+          dateStr={photoModalData.dateStr}
+          onClose={() => setPhotoModalData(null)}
+        />
       )}
     </div>
   );

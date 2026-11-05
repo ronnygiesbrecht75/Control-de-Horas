@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn, UserPlus } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn, UserPlus, Smartphone } from 'lucide-react';
 
 interface LoginScreenProps {
   onLoginSuccess: (username: string) => void;
+  onGoToEmployeePortal?: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onGoToEmployeePortal }) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -194,24 +195,35 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             )}
           </button>
 
-          <div className="pt-4 border-t border-slate-100 text-center">
+          <div className="pt-4 border-t border-slate-100 space-y-3">
             <button
               type="button"
-              onClick={() => {
-                setIsRegistering(!isRegistering);
-                setError('');
-              }}
-              className="text-xs font-semibold text-orange-600 hover:text-orange-700 hover:underline"
+              onClick={onGoToEmployeePortal}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-blue-400 hover:text-blue-300 font-bold text-xs rounded-xl border border-slate-700 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
             >
-              {isRegistering
-                ? '¿Ya tienes una cuenta? Iniciar Sesión'
-                : '¿No tienes cuenta? Registrar usuario nuevo'}
+              <Smartphone className="w-4 h-4 text-blue-400" />
+              <span>📱 ¿Eres Empleado? Marcar Horario con Clave de Licencia</span>
             </button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsRegistering(!isRegistering);
+                  setError('');
+                }}
+                className="text-xs font-semibold text-orange-600 hover:text-orange-700 hover:underline"
+              >
+                {isRegistering
+                  ? '¿Ya tienes una cuenta? Iniciar Sesión'
+                  : '¿No tienes cuenta? Registrar usuario nuevo'}
+              </button>
+            </div>
           </div>
 
           {!isRegistering && (
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-[11px] text-slate-500 text-center">
-              <span className="font-semibold text-slate-700">Acceso predeterminado:</span> Usuario: <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-200">admin</code> | Clave: <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-200">admin</code>
+              <span className="font-semibold text-slate-700">Acceso Administrador:</span> Usuario: <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-200">admin</code> | Clave: <code className="font-mono bg-white px-1 py-0.5 rounded border border-slate-200">admin</code>
             </div>
           )}
         </form>

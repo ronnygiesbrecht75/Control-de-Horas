@@ -35,6 +35,15 @@ export function saveCurrencyToStorage(currency: any) {
   }
 }
 
+export function generateLicenseKey(name?: string): string {
+  const cleanName = (name || 'EMP')
+    .toUpperCase()
+    .replace(/[^A-Z]/g, '')
+    .slice(0, 4) || 'USER';
+  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  return `LIC-${randomNum}-${cleanName}`;
+}
+
 export function loadEmployeesFromStorage(): Employee[] {
   try {
     // Clear legacy demo keys on first load if present
@@ -49,7 +58,22 @@ export function loadEmployeesFromStorage(): Employee[] {
       return [];
     }
     const data = localStorage.getItem(STORAGE_KEYS.EMPLOYEES);
-    if (data) return JSON.parse(data);
+    if (data) {
+      const parsed: Employee[] = JSON.parse(data);
+      let modified = false;
+      const verified = parsed.map(emp => {
+        if (!emp.licenseKey) {
+          emp.licenseKey = generateLicenseKey(emp.name);
+          emp.licenseActive = true;
+          modified = true;
+        }
+        return emp;
+      });
+      if (modified) {
+        saveEmployeesToStorage(verified);
+      }
+      return verified;
+    }
   } catch (err) {
     console.error('Error loading employees:', err);
   }

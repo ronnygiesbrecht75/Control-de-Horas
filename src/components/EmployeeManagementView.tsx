@@ -20,7 +20,10 @@ import {
   TrendingUp,
   History,
   Plus,
-  ArrowUpRight
+  ArrowUpRight,
+  Smartphone,
+  KeyRound,
+  QrCode
 } from 'lucide-react';
 import { 
   formatCurrencyWithSymbol, 
@@ -29,6 +32,8 @@ import {
   getTodayDateStr,
   getEmployeeRateForDate
 } from '../utils/timeUtils';
+import { EmployeeLicenseModal } from './EmployeeLicenseModal';
+import { generateLicenseKey } from '../data/mockData';
 
 interface EmployeeManagementViewProps {
   employees: Employee[];
@@ -37,6 +42,7 @@ interface EmployeeManagementViewProps {
   onUpdateEmployee: (emp: Employee) => void;
   onDeleteEmployee: (id: string) => void;
   onGoToExEmployees?: () => void;
+  onOpenMobilePortal?: (licenseKey: string) => void;
 }
 
 const COLORS = [
@@ -80,12 +86,16 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
   onAddEmployee,
   onUpdateEmployee,
   onDeleteEmployee,
-  onGoToExEmployees
+  onGoToExEmployees,
+  onOpenMobilePortal
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [filterFrequency, setFilterFrequency] = useState<'all' | 'quincenal' | 'mensual'>('all');
   const [toastMessage, setToastMessage] = useState<string>('');
+
+  // License modal state
+  const [selectedLicenseEmp, setSelectedLicenseEmp] = useState<Employee | null>(null);
 
   // Deactivation confirmation modal state
   const [deactivatingEmp, setDeactivatingEmp] = useState<Employee | null>(null);
@@ -111,6 +121,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
   const [endDate, setEndDate] = useState('');
   const [exitReason, setExitReason] = useState('');
   const [isActiveStatus, setIsActiveStatus] = useState(true);
+  const [formLicenseKey, setFormLicenseKey] = useState('');
 
   // Standalone Rate History Modal State
   const [selectedRateEmp, setSelectedRateEmp] = useState<Employee | null>(null);
@@ -147,6 +158,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
     setEndDate('');
     setExitReason('');
     setIsActiveStatus(true);
+    setFormLicenseKey(generateLicenseKey(''));
     setShowModal(true);
   };
 
@@ -179,6 +191,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
     setEndDate(emp.endDate || '');
     setExitReason(emp.exitReason || '');
     setIsActiveStatus(emp.active);
+    setFormLicenseKey(emp.licenseKey || generateLicenseKey(emp.name));
     setShowModal(true);
   };
 
@@ -302,6 +315,8 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
       getTodayDateStr()
     );
 
+    const finalLicense = formLicenseKey.trim().toUpperCase() || generateLicenseKey(name.trim());
+
     if (editingEmp) {
       onUpdateEmployee({
         ...editingEmp,
@@ -320,7 +335,11 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         exitReason: exitReason.trim() || undefined,
-        active: isActiveStatus
+        active: isActiveStatus,
+        licenseKey: finalLicense,
+        licenseActive: editingEmp.licenseActive !== false,
+        deviceLinked: editingEmp.deviceLinked,
+        deviceLinkedAt: editingEmp.deviceLinkedAt
       });
       showToast(`Empleado ${name.trim()} actualizado correctamente.`);
     } else {
@@ -340,7 +359,10 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
         color,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
-        exitReason: exitReason.trim() || undefined
+        exitReason: exitReason.trim() || undefined,
+        licenseKey: finalLicense,
+        licenseActive: true,
+        deviceLinked: false
       });
       showToast(`Empleado ${name.trim()} agregado con éxito.`);
     }
@@ -645,6 +667,40 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                         </span>
                       </div>
                     )}
+
+                    {/* Clave de Licencia & Acceso Celular */}
+                    <div className="p-2.5 bg-blue-50/70 border border-blue-200/80 rounded-xl flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <Smartphone className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                        <div>
+                          <span className="text-[10px] text-slate-500 block leading-none font-semibold">Licencia App Celular:</span>
+                          <span className="font-mono font-black text-blue-900 text-xs">
+                            {emp.licenseKey || 'Sin clave'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedLicenseEmp(emp)}
+                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                          title="Ver Clave de Licencia, QR y enlace para el celular del empleado"
+                        >
+                          <KeyRound className="w-3 h-3" />
+                          <span>Clave / QR</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onOpenMobilePortal(emp.licenseKey || '')}
+                          className="px-2 py-1 bg-slate-800 hover:bg-slate-900 text-slate-200 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                          title="Probar directamente el marcador móvil de este empleado en esta PC"
+                        >
+                          <Smartphone className="w-3 h-3 text-emerald-400" />
+                          <span>Probar</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -999,6 +1055,33 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                 </div>
               </div>
 
+              {/* Clave de Licencia Móvil */}
+              <div className="bg-blue-50/70 p-3.5 rounded-xl border border-blue-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                    <Smartphone className="w-4 h-4 text-blue-600" />
+                    <span>Clave de Licencia (App Celular):</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFormLicenseKey(generateLicenseKey(name))}
+                    className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-white border border-blue-300 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                  >
+                    🎲 Generar
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={formLicenseKey}
+                  onChange={(e) => setFormLicenseKey(e.target.value.toUpperCase())}
+                  placeholder="Ej. LIC-8492-JUAN"
+                  className="w-full px-3 py-2 bg-white border border-blue-300 rounded-xl font-mono font-bold text-sm text-blue-900 uppercase focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+                <p className="text-[10px] text-slate-500 leading-tight">
+                  El empleado usará esta clave para abrir la App en su celular por primera vez.
+                </p>
+              </div>
+
               <div className="pt-4 flex justify-end space-x-2">
                 <button
                   type="button"
@@ -1334,6 +1417,24 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL DE CLAVE DE LICENCIA Y ACCESO CELULAR */}
+      {selectedLicenseEmp && (
+        <EmployeeLicenseModal
+          employee={selectedLicenseEmp}
+          onUpdateEmployee={(updated) => {
+            onUpdateEmployee(updated);
+            setSelectedLicenseEmp(updated);
+          }}
+          onClose={() => setSelectedLicenseEmp(null)}
+          onOpenMobilePortal={(key) => {
+            setSelectedLicenseEmp(null);
+            if (onOpenMobilePortal) {
+              onOpenMobilePortal(key);
+            }
+          }}
+        />
       )}
     </div>
   );

@@ -39,6 +39,7 @@ import { ExEmployeesView } from './components/ExEmployeesView';
 import { SidebarNav } from './components/SidebarNav';
 import { LoginScreen } from './components/LoginScreen';
 import { AutoUpdater } from './components/AutoUpdater';
+import { EmployeeMobilePortal } from './components/EmployeeMobilePortal';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(() => {
@@ -279,8 +280,127 @@ export default function App() {
     }
   };
 
+  const [mobilePortalLicense, setMobilePortalLicense] = useState<string>('');
+
+  // Decide if the app should open in Employee Mobile Portal mode
+  const [isEmployeePortalActive, setIsEmployeePortalActive] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasDeviceLicense = Boolean(localStorage.getItem('control_horas_device_license'));
+    const isExplicitPortal = (
+      urlParams.get('portal') === 'empleado' ||
+      window.location.hash.includes('portal-empleado') ||
+      Boolean(urlParams.get('licencia'))
+    );
+    const hasAdminSession = Boolean(localStorage.getItem('current_user'));
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+
+    // 1. If device already has an employee license saved, ALWAYS default to employee portal!
+    if (hasDeviceLicense && !hasAdminSession) return true;
+    // 2. If URL indicates employee portal
+    if (isExplicitPortal) return true;
+    // 3. On mobile devices without an active admin session, default directly to employee portal
+    if (isMobileDevice && !hasAdminSession) return true;
+    return false;
+  });
+
+  // Handle URL activation parameters (e.g. employee scanning QR code or clicking WhatsApp link from phone)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const urlParams = new URLSearchParams(window.location.search);
+    let hashQuery = window.location.hash;
+    if (hashQuery.includes('?')) {
+      hashQuery = hashQuery.split('?')[1];
+    } else {
+      hashQuery = hashQuery.replace(/^#/, '');
+    }
+    const hashParams = new URLSearchParams(hashQuery);
+
+    const licencia = (urlParams.get('licencia') || hashParams.get('licencia') || '').trim().toUpperCase();
+    const empName = urlParams.get('emp_name') || hashParams.get('emp_name') || '';
+    const empId = urlParams.get('emp_id') || hashParams.get('emp_id') || '';
+    const empRole = urlParams.get('emp_role') || hashParams.get('emp_role') || 'Operario';
+
+    if (licencia && empName) {
+      // Auto-register employee on this device if not present
+      setEmployees(prev => {
+        const existingIdx = prev.findIndex(
+          e => (e.licenseKey && e.licenseKey.trim().toUpperCase() === licencia) || (empId && e.id === empId)
+        );
+        if (existingIdx >= 0) {
+          const copy = [...prev];
+          copy[existingIdx] = {
+            ...copy[existingIdx],
+            licenseKey: licencia,
+            active: true,
+            licenseActive: true,
+            deviceLinked: true
+          };
+          return copy;
+        } else {
+          const newEmp: Employee = {
+            id: empId || `emp-${Date.now()}`,
+            name: decodeURIComponent(empName),
+            role: decodeURIComponent(empRole),
+            licenseKey: licencia,
+            licenseActive: true,
+            deviceLinked: true,
+            deviceLinkedAt: new Date().toISOString(),
+            active: true,
+            hourlyRate: 18000
+          };
+          return [...prev, newEmp];
+        }
+      });
+
+      // Save device activation locally so the phone stays activated permanently
+      localStorage.setItem('control_horas_device_license', licencia);
+      setMobilePortalLicense(licencia);
+      setIsEmployeePortalActive(true);
+    }
+  }, []);
+
+  const getUrlLicenseParam = () => {
+    if (typeof window === 'undefined') return '';
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('licencia')) return urlParams.get('licencia') || '';
+    if (window.location.hash.includes('licencia=')) {
+      const match = window.location.hash.match(/licencia=([^&]+)/);
+      if (match) return decodeURIComponent(match[1]);
+    }
+    return '';
+  };
+
+  // Direct Mobile Portal Access for Employees (does not require admin user/password)
+  if (isEmployeePortalActive || activeTab === 'mobile-portal') {
+    return (
+      <EmployeeMobilePortal
+        employees={employees}
+        records={records}
+        onUpdateEmployee={handleUpdateEmployee}
+        onUpdateRecord={handleUpdateRecord}
+        onExitToAdmin={() => {
+          setIsEmployeePortalActive(false);
+          setActiveTab('daily');
+          if (window.location.hash.includes('portal-empleado')) {
+            window.location.hash = '';
+          }
+        }}
+        onSwitchToAdmin={() => {
+          setIsEmployeePortalActive(false);
+        }}
+        initialLicenseParam={mobilePortalLicense || getUrlLicenseParam()}
+      />
+    );
+  }
+
   if (!currentUser) {
-    return <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
+    return (
+      <LoginScreen 
+        onLoginSuccess={(user) => setCurrentUser(user)} 
+        onGoToEmployeePortal={() => setIsEmployeePortalActive(true)}
+      />
+    );
   }
 
   return (
@@ -357,6 +477,11 @@ export default function App() {
                 onUpdateEmployee={handleUpdateEmployee}
                 onDeleteEmployee={handleDeleteEmployee}
                 onGoToExEmployees={() => setActiveTab('ex-employees')}
+                onOpenMobilePortal={(key) => {
+                  setMobilePortalLicense(key);
+                  setIsEmployeePortalActive(true);
+                  setActiveTab('mobile-portal');
+                }}
               />
             )}
 

@@ -7,7 +7,8 @@ import {
   Users, 
   UserX,
   ChevronRight,
-  Layers
+  Layers,
+  Smartphone
 } from 'lucide-react';
 
 interface SidebarNavProps {
@@ -53,6 +54,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       label: 'Ex Empleados',
       icon: <UserX className="w-5 h-5 shrink-0" />,
       badge: exEmployeesCount > 0 ? `${exEmployeesCount}` : undefined
+    },
+    {
+      id: 'mobile-portal',
+      label: 'Marcador Móvil',
+      icon: <Smartphone className="w-5 h-5 shrink-0" />,
+      badge: 'App'
     }
   ];
 

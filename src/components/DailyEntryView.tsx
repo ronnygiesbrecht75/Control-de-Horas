@@ -29,8 +29,10 @@ import {
   LogIn,
   Users,
   User,
-  ShoppingBag
+  ShoppingBag,
+  Camera
 } from 'lucide-react';
+import { PunchPhotoModal } from './PunchPhotoModal';
 
 interface DailyEntryViewProps {
   dateStr: string;
@@ -51,6 +53,13 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
   onFillAllDefault,
   currency = { symbol: '₲', code: 'PYG' }
 }) => {
+  const [photoModalData, setPhotoModalData] = useState<{
+    photoUrl: string;
+    employeeName: string;
+    punchLabel: string;
+    timeStr: string;
+    dateStr: string;
+  } | null>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string>('');
   const [employeeDays, setEmployeeDays] = useState<Record<string, number | string>>({});
   const [recentlySaved, setRecentlySaved] = useState<Record<string, boolean>>({});
@@ -842,9 +851,28 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">
-                            Entrada:
-                          </label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[10px] font-semibold text-slate-500">
+                              Entrada:
+                            </label>
+                            {rec.entry1Photo && (
+                              <button
+                                type="button"
+                                onClick={() => setPhotoModalData({
+                                  photoUrl: rec.entry1Photo!,
+                                  employeeName: emp.name,
+                                  punchLabel: 'Entrada Turno 1 (Mañana)',
+                                  timeStr: rec.entry1,
+                                  dateStr: empTargetDate
+                                })}
+                                className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 cursor-pointer"
+                                title="Ver foto facial de verificación"
+                              >
+                                <Camera className="w-3 h-3 text-blue-600" />
+                                <span>Foto</span>
+                              </button>
+                            )}
+                          </div>
                           <input
                             id={`input-entry1-${emp.id}`}
                             type="time"
@@ -855,9 +883,28 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">
-                            Salida:
-                          </label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[10px] font-semibold text-slate-500">
+                              Salida:
+                            </label>
+                            {rec.exit1Photo && (
+                              <button
+                                type="button"
+                                onClick={() => setPhotoModalData({
+                                  photoUrl: rec.exit1Photo!,
+                                  employeeName: emp.name,
+                                  punchLabel: 'Salida Turno 1 (Mañana)',
+                                  timeStr: rec.exit1,
+                                  dateStr: empTargetDate
+                                })}
+                                className="text-[10px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-0.5 cursor-pointer"
+                                title="Ver foto facial de verificación"
+                              >
+                                <Camera className="w-3 h-3 text-rose-600" />
+                                <span>Foto</span>
+                              </button>
+                            )}
+                          </div>
                           <input
                             id={`input-exit1-${emp.id}`}
                             type="time"
@@ -885,9 +932,28 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">
-                            Entrada:
-                          </label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[10px] font-semibold text-slate-500">
+                              Entrada:
+                            </label>
+                            {rec.entry2Photo && (
+                              <button
+                                type="button"
+                                onClick={() => setPhotoModalData({
+                                  photoUrl: rec.entry2Photo!,
+                                  employeeName: emp.name,
+                                  punchLabel: 'Entrada Turno 2 (Tarde)',
+                                  timeStr: rec.entry2,
+                                  dateStr: empTargetDate
+                                })}
+                                className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 cursor-pointer"
+                                title="Ver foto facial de verificación"
+                              >
+                                <Camera className="w-3 h-3 text-blue-600" />
+                                <span>Foto</span>
+                              </button>
+                            )}
+                          </div>
                           <input
                             id={`input-entry2-${emp.id}`}
                             type="time"
@@ -898,9 +964,28 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">
-                            Salida:
-                          </label>
+                          <div className="flex items-center justify-between mb-0.5">
+                            <label className="block text-[10px] font-semibold text-slate-500">
+                              Salida:
+                            </label>
+                            {rec.exit2Photo && (
+                              <button
+                                type="button"
+                                onClick={() => setPhotoModalData({
+                                  photoUrl: rec.exit2Photo!,
+                                  employeeName: emp.name,
+                                  punchLabel: 'Salida Turno 2 (Tarde)',
+                                  timeStr: rec.exit2,
+                                  dateStr: empTargetDate
+                                })}
+                                className="text-[10px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-0.5 cursor-pointer"
+                                title="Ver foto facial de verificación"
+                              >
+                                <Camera className="w-3 h-3 text-rose-600" />
+                                <span>Foto</span>
+                              </button>
+                            )}
+                          </div>
                           <input
                             id={`input-exit2-${emp.id}`}
                             type="time"
@@ -1198,6 +1283,18 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* MODAL PARA VER FOTO DE VERIFICACIÓN FACIAL */}
+      {photoModalData && (
+        <PunchPhotoModal
+          photoUrl={photoModalData.photoUrl}
+          employeeName={photoModalData.employeeName}
+          punchLabel={photoModalData.punchLabel}
+          timeStr={photoModalData.timeStr}
+          dateStr={photoModalData.dateStr}
+          onClose={() => setPhotoModalData(null)}
+        />
+      )}
     </div>
   );
 };

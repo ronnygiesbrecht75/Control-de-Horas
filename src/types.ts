@@ -4,6 +4,17 @@ export interface IntermediateExit {
   returnTime: string; // Hora de llegada (a qué hora regresó / llegó)
   label?: string;     // ej. "Salida intermedia", "Permiso"
   reason?: string;
+  exitPhoto?: string;   // Foto de verificación facial de salida (Base64)
+  returnPhoto?: string; // Foto de verificación facial de regreso (Base64)
+}
+
+export interface PunchAuditLog {
+  id: string;
+  type: 'entry1' | 'exit1' | 'intermediate_exit' | 'intermediate_return' | 'entry2' | 'exit2';
+  time: string; // "HH:MM"
+  timestamp: string; // ISO string
+  photo: string; // Base64 image
+  label: string; // Ej: "Entrada Mañana (T1)"
 }
 
 export interface TimeInterval {
@@ -27,9 +38,15 @@ export interface DailyTimeRecord {
   // Turno 1 (Mañana)
   entry1: string; // "HH:MM" e.g. "08:00" or ""
   exit1: string;  // "HH:MM" e.g. "12:00" or ""
+  entry1Photo?: string; // Foto facial de verificación de entrada turno 1
+  exit1Photo?: string;  // Foto facial de verificación de salida turno 1
   // Turno 2 (Tarde)
   entry2: string; // "HH:MM" e.g. "14:00" or ""
   exit2: string;  // "HH:MM" e.g. "18:00" or ""
+  entry2Photo?: string; // Foto facial de verificación de entrada turno 2
+  exit2Photo?: string;  // Foto facial de verificación de salida turno 2
+  // Historial de marcaciones con foto
+  punches?: PunchAuditLog[];
   // Salidas intermedias que se descuentan del total de horas del día
   intermediateExits?: IntermediateExit[];
   // Retiro de productos o compras del día que se descuentan del sueldo a cobrar
@@ -70,6 +87,11 @@ export interface Employee {
   startDate?: string; // Fecha de comienzo / ingreso al trabajo (YYYY-MM-DD)
   endDate?: string;   // Fecha de salida / retiro de la empresa (YYYY-MM-DD)
   exitReason?: string; // Motivo de salida opcional
+  // LICENCIA MÓVIL Y APP CELULAR
+  licenseKey?: string;      // Clave de licencia única para activar el celular (ej. LIC-8429-JUAN)
+  licenseActive?: boolean;  // Si la licencia está habilitada
+  deviceLinked?: boolean;   // Si ya fue activada en un dispositivo móvil
+  deviceLinkedAt?: string;  // Fecha y hora en que se vinculó el dispositivo
 }
 
 export type SettlementPeriodType = 'quincenal_1' | 'quincenal_2' | 'mensual' | 'custom';
@@ -98,7 +120,7 @@ export interface MonthlySettlementAdjustment {
   paidAt?: string; // ISO timestamp
 }
 
-export type ActiveTab = 'daily' | 'monthly' | 'settlement' | 'employees' | 'ex-employees';
+export type ActiveTab = 'daily' | 'monthly' | 'settlement' | 'employees' | 'ex-employees' | 'mobile-portal';
 
 export interface CurrencyConfig {
   symbol: string;

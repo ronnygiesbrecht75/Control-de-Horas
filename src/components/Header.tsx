@@ -18,7 +18,8 @@ import {
   Sparkles,
   ArrowUpCircle,
   Globe,
-  Check
+  Check,
+  Smartphone
 } from 'lucide-react';
 import { formatMonthSpanish, createWhatsAppShareUrl } from '../utils/timeUtils';
 import { loadEmployeesFromStorage } from '../data/mockData';
@@ -161,6 +162,16 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 <MessageCircle className="w-4 h-4 text-white fill-current" />
                 <span className="text-xs sm:text-sm">WhatsApp</span>
+              </button>
+
+              {/* App Celular button */}
+              <button
+                onClick={() => setActiveTab('mobile-portal')}
+                title="Abrir Marcador Móvil para Celular con Face ID / Foto"
+                className="hidden sm:flex items-center space-x-1.5 bg-blue-600/90 hover:bg-blue-600 text-white font-semibold px-3 py-1.5 rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                <Smartphone className="w-4 h-4 text-white" />
+                <span className="text-xs">App Celular</span>
               </button>
             </div>
 

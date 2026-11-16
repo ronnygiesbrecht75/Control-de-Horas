@@ -1,4 +1,10 @@
 {
   "employees": [],
-  "records": []
+  "records": [],
+  "adjustments": [],
+  "vacations": [],
+  "currency": {
+    "symbol": "₲",
+    "code": "PYG"
+  }
 }

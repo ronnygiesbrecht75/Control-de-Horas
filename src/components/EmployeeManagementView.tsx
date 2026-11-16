@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Employee, CurrencyConfig, PaymentFrequency, HourlyRateEntry } from '../types';
+import { Employee, CurrencyConfig, PaymentFrequency, HourlyRateEntry, VacationEntry } from '../types';
 import { 
   Users, 
   UserPlus, 
@@ -23,7 +23,8 @@ import {
   ArrowUpRight,
   Smartphone,
   KeyRound,
-  QrCode
+  QrCode,
+  Umbrella
 } from 'lucide-react';
 import { 
   formatCurrencyWithSymbol, 
@@ -38,6 +39,8 @@ import { generateLicenseKey } from '../data/mockData';
 interface EmployeeManagementViewProps {
   employees: Employee[];
   currency: CurrencyConfig;
+  vacations?: VacationEntry[];
+  onUpdateVacations?: (vacations: VacationEntry[]) => void;
   onAddEmployee: (emp: Omit<Employee, 'id'>) => void;
   onUpdateEmployee: (emp: Employee) => void;
   onDeleteEmployee: (id: string) => void;
@@ -83,6 +86,8 @@ const COLORS = [
 export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
   employees,
   currency,
+  vacations = [],
+  onUpdateVacations,
   onAddEmployee,
   onUpdateEmployee,
   onDeleteEmployee,
@@ -96,6 +101,13 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
 
   // License modal state
   const [selectedLicenseEmp, setSelectedLicenseEmp] = useState<Employee | null>(null);
+
+  // Vacations management modal state
+  const [showVacationsModal, setShowVacationsModal] = useState(false);
+  const [vacEmpId, setVacEmpId] = useState<string>('');
+  const [vacStartDate, setVacStartDate] = useState<string>(getTodayDateStr());
+  const [vacEndDate, setVacEndDate] = useState<string>(getTodayDateStr());
+  const [vacNotes, setVacNotes] = useState<string>('');
 
   // Deactivation confirmation modal state
   const [deactivatingEmp, setDeactivatingEmp] = useState<Employee | null>(null);
@@ -120,6 +132,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [exitReason, setExitReason] = useState('');
+  const [annualVacationDays, setAnnualVacationDays] = useState<number>(12);
   const [isActiveStatus, setIsActiveStatus] = useState(true);
   const [formLicenseKey, setFormLicenseKey] = useState('');
 
@@ -157,6 +170,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
     setStartDate(initStart);
     setEndDate('');
     setExitReason('');
+    setAnnualVacationDays(12);
     setIsActiveStatus(true);
     setFormLicenseKey(generateLicenseKey(''));
     setShowModal(true);
@@ -190,6 +204,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
     setStartDate(emp.startDate || '');
     setEndDate(emp.endDate || '');
     setExitReason(emp.exitReason || '');
+    setAnnualVacationDays(emp.annualVacationDays ?? 12);
     setIsActiveStatus(emp.active);
     setFormLicenseKey(emp.licenseKey || generateLicenseKey(emp.name));
     setShowModal(true);
@@ -335,6 +350,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         exitReason: exitReason.trim() || undefined,
+        annualVacationDays: Math.max(0, Number(annualVacationDays) || 12),
         active: isActiveStatus,
         licenseKey: finalLicense,
         licenseActive: editingEmp.licenseActive !== false,
@@ -360,6 +376,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
         startDate: startDate || undefined,
         endDate: endDate || undefined,
         exitReason: exitReason.trim() || undefined,
+        annualVacationDays: Math.max(0, Number(annualVacationDays) || 12),
         licenseKey: finalLicense,
         licenseActive: true,
         deviceLinked: false
@@ -418,6 +435,48 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
 
   const activeEmployees = employees.filter(e => e.active);
   const exEmployeesCount = employees.filter(e => !e.active).length;
+  const pendingVacationsCount = vacations.filter(v => v.status === 'pendiente').length;
+
+  const handleOpenVacationsModal = () => {
+    if (!vacEmpId && activeEmployees.length > 0) {
+      setVacEmpId(activeEmployees[0].id);
+    }
+    setShowVacationsModal(true);
+  };
+
+  const handleAddManualVacation = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onUpdateVacations || !vacEmpId || !vacStartDate || !vacEndDate) return;
+    const s = new Date(vacStartDate + 'T00:00:00');
+    const end = new Date(vacEndDate + 'T00:00:00');
+    const diff = Math.round((end.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const daysCount = Math.max(1, diff);
+    const newEntry: VacationEntry = {
+      id: `vac-${Date.now()}`,
+      employeeId: vacEmpId,
+      startDate: vacStartDate,
+      endDate: vacEndDate,
+      daysCount,
+      status: 'aprobada',
+      notes: vacNotes.trim() || 'Asignadas desde administración',
+      createdAt: new Date().toISOString()
+    };
+    onUpdateVacations([newEntry, ...vacations]);
+    setVacNotes('');
+    showToast(`Vacaciones aprobadas registradas (${daysCount} días).`);
+  };
+
+  const handleChangeVacationStatus = (vacId: string, status: 'aprobada' | 'rechazada') => {
+    if (!onUpdateVacations) return;
+    onUpdateVacations(vacations.map(v => v.id === vacId ? { ...v, status } : v));
+    showToast(status === 'aprobada' ? 'Solicitud de vacaciones aprobada.' : 'Solicitud de vacaciones rechazada.');
+  };
+
+  const handleDeleteVacation = (vacId: string) => {
+    if (!onUpdateVacations) return;
+    onUpdateVacations(vacations.filter(v => v.id !== vacId));
+    showToast('Registro de vacaciones eliminado.');
+  };
 
   const filteredEmployees = employees.filter(emp => {
     // Show active employees by default in this view
@@ -486,6 +545,22 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
               Mensual 30d ({mensualesCount})
             </button>
           </div>
+
+          {/* Botón de Vacaciones y Solicitudes Móviles */}
+          <button
+            type="button"
+            onClick={handleOpenVacationsModal}
+            className="flex items-center gap-1.5 px-3 py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 text-xs font-bold rounded-xl transition-colors shrink-0 cursor-pointer border border-teal-200 relative"
+            title="Administrar días de vacaciones y solicitudes de empleados"
+          >
+            <Umbrella className="w-3.5 h-3.5 text-teal-600" />
+            <span>Vacaciones</span>
+            {pendingVacationsCount > 0 && (
+              <span className="px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-black">
+                {pendingVacationsCount}
+              </span>
+            )}
+          </button>
 
           {/* Jump to Ex Empleados */}
           {onGoToExEmployees && (
@@ -667,6 +742,16 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                         </span>
                       </div>
                     )}
+
+                    <div className="flex items-center justify-between text-slate-600">
+                      <span className="flex items-center gap-1.5 text-slate-500">
+                        <Umbrella className="w-3.5 h-3.5 text-teal-600" />
+                        <span>Vacaciones anuales:</span>
+                      </span>
+                      <span className="font-bold text-teal-800">
+                        {emp.annualVacationDays ?? 12} días/año
+                      </span>
+                    </div>
 
                     {/* Clave de Licencia & Acceso Celular */}
                     <div className="p-2.5 bg-blue-50/70 border border-blue-200/80 rounded-xl flex items-center justify-between text-xs">
@@ -963,17 +1048,32 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Teléfono (Opcional)
-                </label>
-                <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Ej. +595 981 123 456"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Teléfono (Opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Ej. +595 981 123 456"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Días de Vacaciones Anuales
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={annualVacationDays}
+                    onChange={(e) => setAnnualVacationDays(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
               {/* Fechas de Comienzo y Salida */}
@@ -1435,6 +1535,181 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
             }
           }}
         />
+      )}
+
+      {/* MODAL DE GESTIÓN DE VACACIONES */}
+      {showVacationsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center">
+                  <Umbrella className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    Gestión de Vacaciones y Solicitudes
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Apruebe solicitudes enviadas desde la App Celular o registre días otorgados
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowVacationsModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-5 flex-1 text-xs">
+              {/* Formulario para asignar vacaciones manualmente */}
+              <form onSubmit={handleAddManualVacation} className="bg-teal-50/70 border border-teal-200 rounded-xl p-4 space-y-3">
+                <p className="font-bold text-teal-950 flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-teal-600" />
+                  <span>Registrar Vacaciones Directamente</span>
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Empleado:</label>
+                    <select
+                      value={vacEmpId}
+                      onChange={(e) => setVacEmpId(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-800"
+                      required
+                    >
+                      {activeEmployees.map(e => (
+                        <option key={e.id} value={e.id}>{e.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Desde:</label>
+                    <input
+                      type="date"
+                      value={vacStartDate}
+                      onChange={(e) => setVacStartDate(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-800"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Hasta:</label>
+                    <input
+                      type="date"
+                      value={vacEndDate}
+                      onChange={(e) => setVacEndDate(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg font-semibold text-slate-800"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={vacNotes}
+                    onChange={(e) => setVacNotes(e.target.value)}
+                    placeholder="Observación o motivo (opcional)..."
+                    className="flex-1 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-slate-800"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-1.5 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg cursor-pointer shrink-0"
+                  >
+                    Guardar Vacaciones
+                  </button>
+                </div>
+              </form>
+
+              {/* Listado de solicitudes y registros */}
+              <div className="space-y-2.5">
+                <h4 className="font-bold uppercase tracking-wider text-slate-600 text-[11px]">
+                  Historial y Solicitudes ({vacations.length})
+                </h4>
+                {vacations.length === 0 ? (
+                  <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-slate-500">
+                    No hay solicitudes ni vacaciones registradas todavía.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {vacations.map(vac => {
+                      const emp = employees.find(e => e.id === vac.employeeId);
+                      return (
+                        <div
+                          key={vac.id}
+                          className="p-3 bg-white border border-slate-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-900">{emp?.name || 'Empleado'}</span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                                vac.status === 'aprobada'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : vac.status === 'rechazada'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {vac.status}
+                              </span>
+                              <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-md">
+                                {vac.daysCount} {vac.daysCount === 1 ? 'día' : 'días'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 mt-1">
+                              📅 Del <strong>{formatDateDisplay(vac.startDate)}</strong> al <strong>{formatDateDisplay(vac.endDate)}</strong>
+                              {vac.notes ? ` · "${vac.notes}"` : ''}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {vac.status !== 'aprobada' && (
+                              <button
+                                type="button"
+                                onClick={() => handleChangeVacationStatus(vac.id, 'aprobada')}
+                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-[11px] cursor-pointer"
+                              >
+                                Aprobar
+                              </button>
+                            )}
+                            {vac.status !== 'rechazada' && (
+                              <button
+                                type="button"
+                                onClick={() => handleChangeVacationStatus(vac.id, 'rechazada')}
+                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-lg font-bold text-[11px] cursor-pointer"
+                              >
+                                Rechazar
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteVacation(vac.id)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg cursor-pointer"
+                              title="Eliminar registro"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end rounded-b-2xl">
+              <button
+                type="button"
+                onClick={() => setShowVacationsModal(false)}
+                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

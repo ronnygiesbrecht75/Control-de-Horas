@@ -8,6 +8,7 @@ import {
   Employee, 
   DailyTimeRecord, 
   MonthlySettlementAdjustment, 
+  VacationEntry,
   ActiveTab, 
   CurrencyConfig 
 } from './types';
@@ -18,6 +19,8 @@ import {
   saveRecordsToStorage, 
   loadAdjustmentsFromStorage, 
   saveAdjustmentsToStorage, 
+  loadVacationsFromStorage,
+  saveVacationsToStorage,
   loadCurrencyFromStorage,
   saveCurrencyToStorage,
   resetAllStorageToDefaults, 
@@ -36,6 +39,7 @@ import { MonthlyGridView } from './components/MonthlyGridView';
 import { MonthlySettlementView } from './components/MonthlySettlementView';
 import { EmployeeManagementView } from './components/EmployeeManagementView';
 import { ExEmployeesView } from './components/ExEmployeesView';
+import { LocationMapView } from './components/LocationMapView';
 import { SidebarNav } from './components/SidebarNav';
 import { LoginScreen } from './components/LoginScreen';
 import { AutoUpdater } from './components/AutoUpdater';
@@ -43,6 +47,9 @@ import { EmployeeMobilePortal } from './components/EmployeeMobilePortal';
 import { 
   syncEmployeesToCloud, 
   syncRecordsToCloud, 
+  syncAdjustmentsToCloud,
+  syncVacationsToCloud,
+  syncCurrencyToCloud,
   fetchCloudState 
 } from './utils/syncService';
 
@@ -54,11 +61,20 @@ export default function App() {
   const [dateStr, setDateStr] = useState<string>(getTodayDateStr());
   const [monthStr, setMonthStr] = useState<string>(getCurrentMonthStr());
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [quotaExceeded, setQuotaExceeded] = useState<boolean>(false);
 
   const [employees, setEmployees] = useState<Employee[]>(() => loadEmployeesFromStorage());
   const [records, setRecords] = useState<DailyTimeRecord[]>(() => loadRecordsFromStorage());
   const [adjustments, setAdjustments] = useState<MonthlySettlementAdjustment[]>(() => loadAdjustmentsFromStorage());
+  const [vacations, setVacations] = useState<VacationEntry[]>(() => loadVacationsFromStorage());
   const [currency, setCurrency] = useState<CurrencyConfig>(() => loadCurrencyFromStorage());
+
+  // Listen to global Google Maps quota-exceeded event
+  useEffect(() => {
+    const handleQuotaExceeded = () => setQuotaExceeded(true);
+    window.addEventListener('gmp-quota-exceeded', handleQuotaExceeded);
+    return () => window.removeEventListener('gmp-quota-exceeded', handleQuotaExceeded);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('current_user');
@@ -90,13 +106,24 @@ export default function App() {
 
   useEffect(() => {
     saveAdjustmentsToStorage(adjustments);
+    if (adjustments.length > 0) {
+      syncAdjustmentsToCloud(adjustments).catch(err => console.debug('Sync adjustments error:', err));
+    }
   }, [adjustments]);
 
   useEffect(() => {
+    saveVacationsToStorage(vacations);
+    if (vacations.length > 0) {
+      syncVacationsToCloud(vacations).catch(err => console.debug('Sync vacations error:', err));
+    }
+  }, [vacations]);
+
+  useEffect(() => {
     saveCurrencyToStorage(currency);
+    syncCurrencyToCloud(currency).catch(err => console.debug('Sync currency error:', err));
   }, [currency]);
 
-  // Pull latest updates from Cloud (employee device punches or web registrations)
+  // Pull latest updates from Cloud (employee device punches, adjustments, vacations, currency)
   useEffect(() => {
     const pullCloudUpdates = async () => {
       try {
@@ -147,6 +174,48 @@ export default function App() {
               });
               return hasChanges ? Array.from(map.values()) : prev;
             });
+          }
+
+          // Merge adjustments (settlements / payments shown in mobile payments history)
+          if (cloudData.adjustments && cloudData.adjustments.length > 0) {
+            setAdjustments(prev => {
+              if (prev.length === 0) return cloudData.adjustments!;
+              const map = new Map<string, MonthlySettlementAdjustment>(prev.map(a => [a.id, a]));
+              let hasChanges = false;
+              cloudData.adjustments!.forEach(ca => {
+                const ex = map.get(ca.id);
+                if (!ex || (ca.isPaid && !ex.isPaid) || ca.bonusAmount !== ex.bonusAmount || ca.advanceAmount !== ex.advanceAmount) {
+                  map.set(ca.id, ca);
+                  hasChanges = true;
+                }
+              });
+              return hasChanges ? Array.from(map.values()) : prev;
+            });
+          }
+
+          // Merge vacations (requests from mobile app & approvals from admin)
+          if (cloudData.vacations && cloudData.vacations.length > 0) {
+            setVacations(prev => {
+              if (prev.length === 0) return cloudData.vacations!;
+              const map = new Map<string, VacationEntry>(prev.map(v => [v.id, v]));
+              let hasChanges = false;
+              cloudData.vacations!.forEach(cv => {
+                const ex = map.get(cv.id);
+                if (!ex || ex.status !== cv.status) {
+                  map.set(cv.id, cv);
+                  hasChanges = true;
+                }
+              });
+              return hasChanges ? Array.from(map.values()) : prev;
+            });
+          }
+
+          if (cloudData.currency && cloudData.currency.symbol) {
+            setCurrency(prev =>
+              prev.code === cloudData.currency!.code && prev.symbol === cloudData.currency!.symbol
+                ? prev
+                : cloudData.currency!
+            );
           }
         }
       } catch (err) {
@@ -289,12 +358,25 @@ export default function App() {
     });
   };
 
+  const handleAddVacationRequest = (vac: VacationEntry) => {
+    setVacations(prev => {
+      const idx = prev.findIndex(v => v.id === vac.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = vac;
+        return copy;
+      }
+      return [vac, ...prev];
+    });
+  };
+
   // Clear all data (clean slate)
   const handleClearAllData = () => {
     resetAllStorageToDefaults();
     setEmployees([]);
     setRecords([]);
     setAdjustments([]);
+    setVacations([]);
     setSelectedEmployeeId('');
     setDateStr(getTodayDateStr());
     setMonthStr(getCurrentMonthStr());
@@ -319,6 +401,7 @@ export default function App() {
       employees,
       records,
       adjustments,
+      vacations,
       currency
     };
     const jsonStr = JSON.stringify(exportData, null, 2);
@@ -342,6 +425,9 @@ export default function App() {
       }
       if (Array.isArray(data.adjustments)) {
         setAdjustments(data.adjustments);
+      }
+      if (Array.isArray(data.vacations)) {
+        setVacations(data.vacations);
       }
       if (data.currency) {
         setCurrency(data.currency);
@@ -445,40 +531,68 @@ export default function App() {
     return '';
   };
 
+  const quotaBanner = quotaExceeded ? (
+    <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
+      <span>
+        Google Maps Platform quota reached. If you are the app owner, visit{' '}
+        <a
+          href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline font-semibold text-amber-950 hover:text-amber-800"
+        >
+          maps developer site
+        </a>{' '}
+        for instructions to update your account.
+      </span>
+    </div>
+  ) : null;
+
   // Direct Mobile Portal Access for Employees (does not require admin user/password)
   if (isEmployeePortalActive || activeTab === 'mobile-portal') {
     return (
-      <EmployeeMobilePortal
-        employees={employees}
-        records={records}
-        onUpdateEmployee={handleUpdateEmployee}
-        onUpdateRecord={handleUpdateRecord}
-        onExitToAdmin={() => {
-          setIsEmployeePortalActive(false);
-          setActiveTab('daily');
-          if (window.location.hash.includes('portal-empleado')) {
-            window.location.hash = '';
-          }
-        }}
-        onSwitchToAdmin={() => {
-          setIsEmployeePortalActive(false);
-        }}
-        initialLicenseParam={mobilePortalLicense || getUrlLicenseParam()}
-      />
+      <>
+        {quotaBanner}
+        <EmployeeMobilePortal
+          employees={employees}
+          records={records}
+          adjustments={adjustments}
+          vacations={vacations}
+          currency={currency}
+          onUpdateEmployee={handleUpdateEmployee}
+          onUpdateRecord={handleUpdateRecord}
+          onAddVacationRequest={handleAddVacationRequest}
+          onExitToAdmin={() => {
+            setIsEmployeePortalActive(false);
+            setActiveTab('daily');
+            if (window.location.hash.includes('portal-empleado')) {
+              window.location.hash = '';
+            }
+          }}
+          onSwitchToAdmin={() => {
+            setIsEmployeePortalActive(false);
+          }}
+          initialLicenseParam={mobilePortalLicense || getUrlLicenseParam()}
+        />
+      </>
     );
   }
 
   if (!currentUser) {
     return (
-      <LoginScreen 
-        onLoginSuccess={(user) => setCurrentUser(user)} 
-        onGoToEmployeePortal={() => setIsEmployeePortalActive(true)}
-      />
+      <>
+        {quotaBanner}
+        <LoginScreen 
+          onLoginSuccess={(user) => setCurrentUser(user)} 
+          onGoToEmployeePortal={() => setIsEmployeePortalActive(true)}
+        />
+      </>
     );
   }
 
   return (
     <div className="min-h-screen bg-slate-100/90 text-slate-800 flex flex-col font-sans">
+      {quotaBanner}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -543,10 +657,23 @@ export default function App() {
               />
             )}
 
+            {activeTab === 'map' && (
+              <LocationMapView
+                dateStr={dateStr}
+                setDateStr={setDateStr}
+                monthStr={monthStr}
+                setMonthStr={setMonthStr}
+                employees={employees}
+                records={records}
+              />
+            )}
+
             {activeTab === 'employees' && (
               <EmployeeManagementView
                 employees={employees}
                 currency={currency}
+                vacations={vacations}
+                onUpdateVacations={setVacations}
                 onAddEmployee={handleAddEmployee}
                 onUpdateEmployee={handleUpdateEmployee}
                 onDeleteEmployee={handleDeleteEmployee}

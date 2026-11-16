@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Employee, DailyTimeRecord, CurrencyConfig, IntermediateExit, SettlementPeriodType, SettlementPeriodConfig } from '../types';
+import { Employee, DailyTimeRecord, CurrencyConfig, IntermediateExit, SettlementPeriodType, SettlementPeriodConfig, PunchLocation } from '../types';
 import { 
   getAllDaysInMonth, 
   formatMonthSpanish, 
@@ -44,9 +44,11 @@ import {
   FileText,
   Check,
   CalendarDays,
-  Camera
+  Camera,
+  MapPin
 } from 'lucide-react';
 import { PunchPhotoModal } from './PunchPhotoModal';
+import { PunchLocationModal } from './PunchLocationModal';
 
 interface MonthlyGridViewProps {
   monthStr: string;
@@ -81,6 +83,16 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
     punchLabel: string;
     timeStr: string;
     dateStr: string;
+  } | null>(null);
+
+  // State for GPS location modal
+  const [locationModalData, setLocationModalData] = useState<{
+    location: PunchLocation;
+    employeeName: string;
+    punchLabel: string;
+    timeStr: string;
+    dateStr: string;
+    photoUrl?: string;
   } | null>(null);
 
   // State for the editing popup / modal
@@ -848,6 +860,23 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                               <Camera className="w-3 h-3" />
                             </button>
                           )}
+                          {(rec.entry1Location || rec.exit1Location) && (
+                            <button
+                              type="button"
+                              onClick={() => setLocationModalData({
+                                location: (rec.entry1Location || rec.exit1Location)!,
+                                employeeName: employee?.name || 'Empleado',
+                                punchLabel: rec.entry1Location ? 'Entrada Turno 1 (Mañana)' : 'Salida Turno 1 (Mañana)',
+                                timeStr: rec.entry1Location ? rec.entry1 : rec.exit1,
+                                dateStr: dateStr,
+                                photoUrl: rec.entry1Location ? rec.entry1Photo : rec.exit1Photo
+                              })}
+                              className="text-emerald-600 hover:text-emerald-800 p-0.5 rounded cursor-pointer"
+                              title="Ver ubicación GPS de la marcación"
+                            >
+                              <MapPin className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <span className="text-slate-300 text-xs leading-none">-</span>
@@ -882,6 +911,23 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                               title="Ver foto facial de verificación"
                             >
                               <Camera className="w-3 h-3" />
+                            </button>
+                          )}
+                          {(rec.entry2Location || rec.exit2Location) && (
+                            <button
+                              type="button"
+                              onClick={() => setLocationModalData({
+                                location: (rec.entry2Location || rec.exit2Location)!,
+                                employeeName: employee?.name || 'Empleado',
+                                punchLabel: rec.entry2Location ? 'Entrada Turno 2 (Tarde)' : 'Salida Turno 2 (Tarde)',
+                                timeStr: rec.entry2Location ? rec.entry2 : rec.exit2,
+                                dateStr: dateStr,
+                                photoUrl: rec.entry2Location ? rec.entry2Photo : rec.exit2Photo
+                              })}
+                              className="text-emerald-600 hover:text-emerald-800 p-0.5 rounded cursor-pointer"
+                              title="Ver ubicación GPS de la marcación"
+                            >
+                              <MapPin className="w-3 h-3" />
                             </button>
                           )}
                         </div>
@@ -921,6 +967,23 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
                                     title="Ver foto facial de verificación"
                                   >
                                     <Camera className="w-3 h-3" />
+                                  </button>
+                                )}
+                                {(item.exitLocation || item.returnLocation) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setLocationModalData({
+                                      location: (item.exitLocation || item.returnLocation)!,
+                                      employeeName: employee?.name || 'Empleado',
+                                      punchLabel: item.exitLocation ? 'Salida Intermedia' : 'Regreso Intermedio',
+                                      timeStr: item.exitLocation ? item.exitTime : item.returnTime,
+                                      dateStr: dateStr,
+                                      photoUrl: item.exitLocation ? item.exitPhoto : item.returnPhoto
+                                    })}
+                                    className="text-emerald-700 hover:text-emerald-900 cursor-pointer ml-0.5"
+                                    title="Ver ubicación GPS"
+                                  >
+                                    <MapPin className="w-3 h-3" />
                                   </button>
                                 )}
                               </div>
@@ -1738,6 +1801,19 @@ export const MonthlyGridView: React.FC<MonthlyGridViewProps> = ({
           timeStr={photoModalData.timeStr}
           dateStr={photoModalData.dateStr}
           onClose={() => setPhotoModalData(null)}
+        />
+      )}
+
+      {/* MODAL PARA VER UBICACIÓN GPS EN GOOGLE MAPS */}
+      {locationModalData && (
+        <PunchLocationModal
+          location={locationModalData.location}
+          employeeName={locationModalData.employeeName}
+          punchLabel={locationModalData.punchLabel}
+          timeStr={locationModalData.timeStr}
+          dateStr={locationModalData.dateStr}
+          photoUrl={locationModalData.photoUrl}
+          onClose={() => setLocationModalData(null)}
         />
       )}
     </div>

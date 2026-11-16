@@ -1,10 +1,12 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, CheckCircle, AlertTriangle, X, ShieldCheck } from 'lucide-react';
+import { Camera, RefreshCw, CheckCircle, AlertTriangle, X, ShieldCheck, MapPin, Loader2 } from 'lucide-react';
+import { PunchLocation } from '../types';
+import { captureCurrentGpsLocation } from '../utils/locationUtils';
 
 interface FaceCameraModalProps {
   employeeName: string;
   punchLabel: string;
-  onCapture: (photoBase64: string) => void;
+  onCapture: (photoBase64: string, location?: PunchLocation) => void;
   onClose: () => void;
 }
 
@@ -23,6 +25,9 @@ export const FaceCameraModal: React.FC<FaceCameraModalProps> = ({
   const [faceDetected, setFaceDetected] = useState(false);
   const [flashEffect, setFlashEffect] = useState(false);
   const [analysisWarning, setAnalysisWarning] = useState<string | null>(null);
+  const [gpsStatus, setGpsStatus] = useState<'loading' | 'captured' | 'error'>('loading');
+  const [gpsLocation, setGpsLocation] = useState<PunchLocation | undefined>(undefined);
+  const [gpsMessage, setGpsMessage] = useState<string>('Obteniendo ubicación GPS...');
 
   // Start front camera
   const startCamera = useCallback(async () => {
@@ -63,8 +68,23 @@ export const FaceCameraModal: React.FC<FaceCameraModalProps> = ({
     }
   }, []);
 
+  const fetchGps = useCallback(async () => {
+    setGpsStatus('loading');
+    setGpsMessage('Obteniendo ubicación GPS...');
+    const res = await captureCurrentGpsLocation(true);
+    if (res.status === 'captured' && res.location) {
+      setGpsLocation(res.location);
+      setGpsStatus('captured');
+      setGpsMessage(res.location.address || `${res.location.lat.toFixed(5)}, ${res.location.lng.toFixed(5)}`);
+    } else {
+      setGpsStatus('error');
+      setGpsMessage(res.errorMessage || 'Sin señal GPS');
+    }
+  }, []);
+
   useEffect(() => {
     startCamera();
+    fetchGps();
     return () => {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
@@ -203,7 +223,7 @@ export const FaceCameraModal: React.FC<FaceCameraModalProps> = ({
 
   const handleConfirm = () => {
     if (!capturedPhoto) return;
-    onCapture(capturedPhoto);
+    onCapture(capturedPhoto, gpsLocation);
   };
 
   return (
@@ -308,6 +328,31 @@ export const FaceCameraModal: React.FC<FaceCameraModalProps> = ({
           )}
 
           <canvas ref={canvasRef} className="hidden" />
+
+          {/* GPS Location Status Bar */}
+          <div className={`px-3 py-2 rounded-xl border text-xs flex items-center justify-between gap-2 ${
+            gpsStatus === 'captured'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              : gpsStatus === 'loading'
+                ? 'bg-blue-50 border-blue-200 text-blue-900'
+                : 'bg-amber-50 border-amber-200 text-amber-900'
+          }`}>
+            <div className="flex items-center gap-2 min-w-0">
+              {gpsStatus === 'loading' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0 text-blue-600" />
+              ) : (
+                <MapPin className={`w-3.5 h-3.5 shrink-0 ${gpsStatus === 'captured' ? 'text-emerald-600' : 'text-amber-600'}`} />
+              )}
+              <span className="truncate font-semibold">{gpsMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={fetchGps}
+              className="text-[11px] font-bold underline shrink-0 cursor-pointer"
+            >
+              Actualizar GPS
+            </button>
+          </div>
 
           {/* Action buttons */}
           {!cameraError && (

@@ -4,6 +4,7 @@ import {
   Clock, 
   Calendar, 
   DollarSign, 
+  MapPin,
   Users, 
   UserX,
   ChevronRight,
@@ -43,6 +44,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       label: 'Liquidación',
       icon: <DollarSign className="w-5 h-5 shrink-0" />,
       badge: 'Pago'
+    },
+    {
+      id: 'map',
+      label: 'Mapa GPS',
+      icon: <MapPin className="w-5 h-5 shrink-0" />,
+      badge: 'GPS'
     },
     {
       id: 'employees',

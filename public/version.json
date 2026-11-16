@@ -1,5 +1,5 @@
 {
-  "version": "1.11",
-  "buildDate": "2026-11-05T13:50:00Z",
-  "description": "Versión 1.11: Sincronización automática en la nube PC ↔ PWA Celular, validación remota de Clave de Licencia de empleados, marcador con foto facial y compatibilidad completa con Windows."
+  "version": "1.12",
+  "buildDate": "2026-11-16T17:12:00Z",
+  "description": "Versión 1.12: Nueva App Móvil de Empleados (Inicio, Horario Habitual, Planilla Mensual, Pagos y Vacaciones) e integración total con Google Maps GPS en marcaciones."
 }

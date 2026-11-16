@@ -1,4 +1,4 @@
-import { Employee, DailyTimeRecord, MonthlySettlementAdjustment } from '../types';
+import { Employee, DailyTimeRecord, MonthlySettlementAdjustment, VacationEntry } from '../types';
 import { getTodayDateStr, getCurrentMonthStr, calculateDailyTotalHours, getAllDaysInMonth } from '../utils/timeUtils';
 
 export const DEFAULT_EMPLOYEES: Employee[] = [];
@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
   EMPLOYEES: 'control_horas_employees_clean_v1',
   RECORDS: 'control_horas_records_clean_v1',
   ADJUSTMENTS: 'control_horas_adjustments_clean_v1',
+  VACATIONS: 'control_horas_vacations_clean_v1',
   CURRENCY: 'control_horas_currency_clean_v1',
   INITIALIZED: 'control_horas_clean_initialized_v1'
 };
@@ -124,10 +125,29 @@ export function saveAdjustmentsToStorage(adjustments: MonthlySettlementAdjustmen
   }
 }
 
+export function loadVacationsFromStorage(): VacationEntry[] {
+  try {
+    const data = localStorage.getItem(STORAGE_KEYS.VACATIONS);
+    if (data) return JSON.parse(data);
+  } catch (err) {
+    console.error('Error loading vacations:', err);
+  }
+  return [];
+}
+
+export function saveVacationsToStorage(vacations: VacationEntry[]) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.VACATIONS, JSON.stringify(vacations));
+  } catch (err) {
+    console.error('Error saving vacations:', err);
+  }
+}
+
 export function resetAllStorageToDefaults() {
   localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.RECORDS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.ADJUSTMENTS, JSON.stringify([]));
+  localStorage.setItem(STORAGE_KEYS.VACATIONS, JSON.stringify([]));
   localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
 }
 

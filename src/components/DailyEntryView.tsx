@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Employee, DailyTimeRecord, IntermediateExit, DailyProductDeduction, CurrencyConfig } from '../types';
+import { Employee, DailyTimeRecord, IntermediateExit, DailyProductDeduction, CurrencyConfig, PunchLocation } from '../types';
 import { 
   calculateDailyTotalHours, 
   calculateShiftHours, 
@@ -30,9 +30,11 @@ import {
   Users,
   User,
   ShoppingBag,
-  Camera
+  Camera,
+  MapPin
 } from 'lucide-react';
 import { PunchPhotoModal } from './PunchPhotoModal';
+import { PunchLocationModal } from './PunchLocationModal';
 
 interface DailyEntryViewProps {
   dateStr: string;
@@ -59,6 +61,14 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
     punchLabel: string;
     timeStr: string;
     dateStr: string;
+  } | null>(null);
+  const [locationModalData, setLocationModalData] = useState<{
+    location: PunchLocation;
+    employeeName: string;
+    punchLabel: string;
+    timeStr: string;
+    dateStr: string;
+    photoUrl?: string;
   } | null>(null);
   const [saveSuccessMessage, setSaveSuccessMessage] = useState<string>('');
   const [employeeDays, setEmployeeDays] = useState<Record<string, number | string>>({});
@@ -855,23 +865,43 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                             <label className="block text-[10px] font-semibold text-slate-500">
                               Entrada:
                             </label>
-                            {rec.entry1Photo && (
-                              <button
-                                type="button"
-                                onClick={() => setPhotoModalData({
-                                  photoUrl: rec.entry1Photo!,
-                                  employeeName: emp.name,
-                                  punchLabel: 'Entrada Turno 1 (Mañana)',
-                                  timeStr: rec.entry1,
-                                  dateStr: empTargetDate
-                                })}
-                                className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 cursor-pointer"
-                                title="Ver foto facial de verificación"
-                              >
-                                <Camera className="w-3 h-3 text-blue-600" />
-                                <span>Foto</span>
-                              </button>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {rec.entry1Location && (
+                                <button
+                                  type="button"
+                                  onClick={() => setLocationModalData({
+                                    location: rec.entry1Location!,
+                                    employeeName: emp.name,
+                                    punchLabel: 'Entrada Turno 1 (Mañana)',
+                                    timeStr: rec.entry1,
+                                    dateStr: empTargetDate,
+                                    photoUrl: rec.entry1Photo
+                                  })}
+                                  className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-0.5 cursor-pointer"
+                                  title="Ver ubicación GPS de esta marcación"
+                                >
+                                  <MapPin className="w-3 h-3 text-emerald-600" />
+                                  <span>Mapa</span>
+                                </button>
+                              )}
+                              {rec.entry1Photo && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPhotoModalData({
+                                    photoUrl: rec.entry1Photo!,
+                                    employeeName: emp.name,
+                                    punchLabel: 'Entrada Turno 1 (Mañana)',
+                                    timeStr: rec.entry1,
+                                    dateStr: empTargetDate
+                                  })}
+                                  className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 cursor-pointer"
+                                  title="Ver foto facial de verificación"
+                                >
+                                  <Camera className="w-3 h-3 text-blue-600" />
+                                  <span>Foto</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <input
                             id={`input-entry1-${emp.id}`}
@@ -887,23 +917,43 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                             <label className="block text-[10px] font-semibold text-slate-500">
                               Salida:
                             </label>
-                            {rec.exit1Photo && (
-                              <button
-                                type="button"
-                                onClick={() => setPhotoModalData({
-                                  photoUrl: rec.exit1Photo!,
-                                  employeeName: emp.name,
-                                  punchLabel: 'Salida Turno 1 (Mañana)',
-                                  timeStr: rec.exit1,
-                                  dateStr: empTargetDate
-                                })}
-                                className="text-[10px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-0.5 cursor-pointer"
-                                title="Ver foto facial de verificación"
-                              >
-                                <Camera className="w-3 h-3 text-rose-600" />
-                                <span>Foto</span>
-                              </button>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {rec.exit1Location && (
+                                <button
+                                  type="button"
+                                  onClick={() => setLocationModalData({
+                                    location: rec.exit1Location!,
+                                    employeeName: emp.name,
+                                    punchLabel: 'Salida Turno 1 (Mañana)',
+                                    timeStr: rec.exit1,
+                                    dateStr: empTargetDate,
+                                    photoUrl: rec.exit1Photo
+                                  })}
+                                  className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-0.5 cursor-pointer"
+                                  title="Ver ubicación GPS de esta marcación"
+                                >
+                                  <MapPin className="w-3 h-3 text-emerald-600" />
+                                  <span>Mapa</span>
+                                </button>
+                              )}
+                              {rec.exit1Photo && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPhotoModalData({
+                                    photoUrl: rec.exit1Photo!,
+                                    employeeName: emp.name,
+                                    punchLabel: 'Salida Turno 1 (Mañana)',
+                                    timeStr: rec.exit1,
+                                    dateStr: empTargetDate
+                                  })}
+                                  className="text-[10px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-0.5 cursor-pointer"
+                                  title="Ver foto facial de verificación"
+                                >
+                                  <Camera className="w-3 h-3 text-rose-600" />
+                                  <span>Foto</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <input
                             id={`input-exit1-${emp.id}`}
@@ -936,23 +986,43 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                             <label className="block text-[10px] font-semibold text-slate-500">
                               Entrada:
                             </label>
-                            {rec.entry2Photo && (
-                              <button
-                                type="button"
-                                onClick={() => setPhotoModalData({
-                                  photoUrl: rec.entry2Photo!,
-                                  employeeName: emp.name,
-                                  punchLabel: 'Entrada Turno 2 (Tarde)',
-                                  timeStr: rec.entry2,
-                                  dateStr: empTargetDate
-                                })}
-                                className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 cursor-pointer"
-                                title="Ver foto facial de verificación"
-                              >
-                                <Camera className="w-3 h-3 text-blue-600" />
-                                <span>Foto</span>
-                              </button>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {rec.entry2Location && (
+                                <button
+                                  type="button"
+                                  onClick={() => setLocationModalData({
+                                    location: rec.entry2Location!,
+                                    employeeName: emp.name,
+                                    punchLabel: 'Entrada Turno 2 (Tarde)',
+                                    timeStr: rec.entry2,
+                                    dateStr: empTargetDate,
+                                    photoUrl: rec.entry2Photo
+                                  })}
+                                  className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-0.5 cursor-pointer"
+                                  title="Ver ubicación GPS de esta marcación"
+                                >
+                                  <MapPin className="w-3 h-3 text-emerald-600" />
+                                  <span>Mapa</span>
+                                </button>
+                              )}
+                              {rec.entry2Photo && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPhotoModalData({
+                                    photoUrl: rec.entry2Photo!,
+                                    employeeName: emp.name,
+                                    punchLabel: 'Entrada Turno 2 (Tarde)',
+                                    timeStr: rec.entry2,
+                                    dateStr: empTargetDate
+                                  })}
+                                  className="text-[10px] text-blue-600 hover:text-blue-800 font-bold flex items-center gap-0.5 cursor-pointer"
+                                  title="Ver foto facial de verificación"
+                                >
+                                  <Camera className="w-3 h-3 text-blue-600" />
+                                  <span>Foto</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <input
                             id={`input-entry2-${emp.id}`}
@@ -968,23 +1038,43 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
                             <label className="block text-[10px] font-semibold text-slate-500">
                               Salida:
                             </label>
-                            {rec.exit2Photo && (
-                              <button
-                                type="button"
-                                onClick={() => setPhotoModalData({
-                                  photoUrl: rec.exit2Photo!,
-                                  employeeName: emp.name,
-                                  punchLabel: 'Salida Turno 2 (Tarde)',
-                                  timeStr: rec.exit2,
-                                  dateStr: empTargetDate
-                                })}
-                                className="text-[10px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-0.5 cursor-pointer"
-                                title="Ver foto facial de verificación"
-                              >
-                                <Camera className="w-3 h-3 text-rose-600" />
-                                <span>Foto</span>
-                              </button>
-                            )}
+                            <div className="flex items-center gap-1.5">
+                              {rec.exit2Location && (
+                                <button
+                                  type="button"
+                                  onClick={() => setLocationModalData({
+                                    location: rec.exit2Location!,
+                                    employeeName: emp.name,
+                                    punchLabel: 'Salida Turno 2 (Tarde)',
+                                    timeStr: rec.exit2,
+                                    dateStr: empTargetDate,
+                                    photoUrl: rec.exit2Photo
+                                  })}
+                                  className="text-[10px] text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-0.5 cursor-pointer"
+                                  title="Ver ubicación GPS de esta marcación"
+                                >
+                                  <MapPin className="w-3 h-3 text-emerald-600" />
+                                  <span>Mapa</span>
+                                </button>
+                              )}
+                              {rec.exit2Photo && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPhotoModalData({
+                                    photoUrl: rec.exit2Photo!,
+                                    employeeName: emp.name,
+                                    punchLabel: 'Salida Turno 2 (Tarde)',
+                                    timeStr: rec.exit2,
+                                    dateStr: empTargetDate
+                                  })}
+                                  className="text-[10px] text-rose-600 hover:text-rose-800 font-bold flex items-center gap-0.5 cursor-pointer"
+                                  title="Ver foto facial de verificación"
+                                >
+                                  <Camera className="w-3 h-3 text-rose-600" />
+                                  <span>Foto</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
                           <input
                             id={`input-exit2-${emp.id}`}
@@ -1074,6 +1164,42 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
 
                               {/* Deduction Badge & Delete */}
                               <div className="flex items-center justify-end gap-2 shrink-0">
+                                {item.exitLocation && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setLocationModalData({
+                                      location: item.exitLocation!,
+                                      employeeName: emp.name,
+                                      punchLabel: `Salida Intermedia #${idx + 1}`,
+                                      timeStr: item.exitTime,
+                                      dateStr: empTargetDate,
+                                      photoUrl: item.exitPhoto
+                                    })}
+                                    className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2 py-1 rounded-md font-bold flex items-center gap-1 cursor-pointer"
+                                    title="Ver ubicación GPS de salida intermedia"
+                                  >
+                                    <MapPin className="w-3 h-3" />
+                                    <span>Mapa</span>
+                                  </button>
+                                )}
+                                {item.returnLocation && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setLocationModalData({
+                                      location: item.returnLocation!,
+                                      employeeName: emp.name,
+                                      punchLabel: `Regreso Intermedio #${idx + 1}`,
+                                      timeStr: item.returnTime,
+                                      dateStr: empTargetDate,
+                                      photoUrl: item.returnPhoto
+                                    })}
+                                    className="text-[10px] text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 px-2 py-1 rounded-md font-bold flex items-center gap-1 cursor-pointer"
+                                    title="Ver ubicación GPS de regreso intermedio"
+                                  >
+                                    <MapPin className="w-3 h-3" />
+                                    <span>Regreso</span>
+                                  </button>
+                                )}
                                 <span className="text-xs font-black text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-md">
                                   {exitH > 0 ? `-${exitH.toFixed(2)} h (-${formatHoursReadable(exitH)})` : '-0.00 h'}
                                 </span>
@@ -1293,6 +1419,19 @@ export const DailyEntryView: React.FC<DailyEntryViewProps> = ({
           timeStr={photoModalData.timeStr}
           dateStr={photoModalData.dateStr}
           onClose={() => setPhotoModalData(null)}
+        />
+      )}
+
+      {/* MODAL PARA VER UBICACIÓN GPS EN GOOGLE MAPS */}
+      {locationModalData && (
+        <PunchLocationModal
+          location={locationModalData.location}
+          employeeName={locationModalData.employeeName}
+          punchLabel={locationModalData.punchLabel}
+          timeStr={locationModalData.timeStr}
+          dateStr={locationModalData.dateStr}
+          photoUrl={locationModalData.photoUrl}
+          onClose={() => setLocationModalData(null)}
         />
       )}
     </div>

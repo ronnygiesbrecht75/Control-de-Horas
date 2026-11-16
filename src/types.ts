@@ -1,3 +1,11 @@
+export interface PunchLocation {
+  lat: number;
+  lng: number;
+  accuracy?: number; // precisión en metros
+  address?: string;  // dirección aproximada resuelta
+  capturedAt?: string; // ISO string
+}
+
 export interface IntermediateExit {
   id?: string;
   exitTime: string;   // Hora de salida (a qué hora salió el empleado)
@@ -6,6 +14,8 @@ export interface IntermediateExit {
   reason?: string;
   exitPhoto?: string;   // Foto de verificación facial de salida (Base64)
   returnPhoto?: string; // Foto de verificación facial de regreso (Base64)
+  exitLocation?: PunchLocation;
+  returnLocation?: PunchLocation;
 }
 
 export interface PunchAuditLog {
@@ -15,6 +25,7 @@ export interface PunchAuditLog {
   timestamp: string; // ISO string
   photo: string; // Base64 image
   label: string; // Ej: "Entrada Mañana (T1)"
+  location?: PunchLocation;
 }
 
 export interface TimeInterval {
@@ -40,12 +51,16 @@ export interface DailyTimeRecord {
   exit1: string;  // "HH:MM" e.g. "12:00" or ""
   entry1Photo?: string; // Foto facial de verificación de entrada turno 1
   exit1Photo?: string;  // Foto facial de verificación de salida turno 1
+  entry1Location?: PunchLocation;
+  exit1Location?: PunchLocation;
   // Turno 2 (Tarde)
   entry2: string; // "HH:MM" e.g. "14:00" or ""
   exit2: string;  // "HH:MM" e.g. "18:00" or ""
   entry2Photo?: string; // Foto facial de verificación de entrada turno 2
   exit2Photo?: string;  // Foto facial de verificación de salida turno 2
-  // Historial de marcaciones con foto
+  entry2Location?: PunchLocation;
+  exit2Location?: PunchLocation;
+  // Historial de marcaciones con foto y ubicación
   punches?: PunchAuditLog[];
   // Salidas intermedias que se descuentan del total de horas del día
   intermediateExits?: IntermediateExit[];
@@ -87,11 +102,23 @@ export interface Employee {
   startDate?: string; // Fecha de comienzo / ingreso al trabajo (YYYY-MM-DD)
   endDate?: string;   // Fecha de salida / retiro de la empresa (YYYY-MM-DD)
   exitReason?: string; // Motivo de salida opcional
+  annualVacationDays?: number; // Días de vacaciones anuales asignados (por defecto 12)
   // LICENCIA MÓVIL Y APP CELULAR
   licenseKey?: string;      // Clave de licencia única para activar el celular (ej. LIC-8429-JUAN)
   licenseActive?: boolean;  // Si la licencia está habilitada
   deviceLinked?: boolean;   // Si ya fue activada en un dispositivo móvil
   deviceLinkedAt?: string;  // Fecha y hora en que se vinculó el dispositivo
+}
+
+export interface VacationEntry {
+  id: string;
+  employeeId: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  daysCount: number;
+  status: 'pendiente' | 'aprobada' | 'rechazada';
+  notes?: string;
+  createdAt?: string;
 }
 
 export type SettlementPeriodType = 'quincenal_1' | 'quincenal_2' | 'mensual' | 'custom';
@@ -120,7 +147,7 @@ export interface MonthlySettlementAdjustment {
   paidAt?: string; // ISO timestamp
 }
 
-export type ActiveTab = 'daily' | 'monthly' | 'settlement' | 'employees' | 'ex-employees' | 'mobile-portal';
+export type ActiveTab = 'daily' | 'monthly' | 'settlement' | 'map' | 'employees' | 'ex-employees' | 'mobile-portal';
 
 export interface CurrencyConfig {
   symbol: string;

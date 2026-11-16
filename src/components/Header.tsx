@@ -218,7 +218,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Settings / Data modal */}
       {showSettingsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[92vh] overflow-y-auto p-6 border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
             <button
               onClick={() => {
                 setShowSettingsModal(false);
@@ -462,7 +462,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Help modal */}
       {showHelpModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-6 border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
             <button
               onClick={() => setShowHelpModal(false)}
               className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg"
@@ -532,7 +532,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* WhatsApp Modal */}
       {showWhatsAppModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[92vh] overflow-y-auto p-6 shadow-xl border border-slate-200">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <MessageCircle className="w-5 h-5 text-orange-600 fill-orange-100" />

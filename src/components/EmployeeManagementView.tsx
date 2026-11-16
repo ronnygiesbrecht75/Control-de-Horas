@@ -829,21 +829,26 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
 
       {/* Modal Agregar / Editar Empleado */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 relative animate-in fade-in zoom-in-95 duration-150">
+            {/* Fixed Modal Header */}
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-blue-600" />
+                <span>{editingEmp ? 'Editar Empleado' : 'Nuevo Empleado'}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+                title="Cerrar"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-blue-600" />
-              <span>{editingEmp ? 'Editar Empleado' : 'Nuevo Empleado'}</span>
-            </h3>
-
-            <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="mt-4 space-y-4">
+            <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="flex flex-col flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Nombre completo *
@@ -1182,11 +1187,14 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                 </p>
               </div>
 
-              <div className="pt-4 flex justify-end space-x-2">
+              </div>
+
+              {/* Sticky Modal Footer */}
+              <div className="px-5 sm:px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex justify-end space-x-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
@@ -1205,7 +1213,7 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
       {/* Modal Desactivar Empleado y Mover a Ex Empleados */}
       {deactivatingEmp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[92vh] overflow-y-auto p-6 border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center">

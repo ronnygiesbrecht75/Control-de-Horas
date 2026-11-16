@@ -167,10 +167,10 @@ export const EmployeeLicenseModal: React.FC<EmployeeLicenseModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden my-6">
+    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-slate-900 px-5 py-4 flex items-center justify-between text-white border-b border-slate-800">
+        <div className="bg-slate-900 px-5 py-4 flex items-center justify-between text-white border-b border-slate-800 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="p-2 bg-blue-500/20 text-blue-400 rounded-xl">
               <Smartphone className="w-5 h-5" />
@@ -190,7 +190,7 @@ export const EmployeeLicenseModal: React.FC<EmployeeLicenseModalProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-5 sm:p-6 space-y-5">
+        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
           {toastMessage && (
             <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-emerald-600" />

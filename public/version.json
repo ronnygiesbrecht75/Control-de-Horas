@@ -1,5 +1,5 @@
 {
-  "version": "1.15",
-  "buildDate": "2026-11-16T18:45:00Z",
-  "description": "Versión 1.15: Nuevo nombre oficial «Gestion de Empleados» en escritorio, web y móvil PWA, verificación en vivo de URL para QR y Google Maps GPS."
+  "version": "1.16",
+  "buildDate": "2026-11-16T18:57:00Z",
+  "description": "Versión 1.16: Ventana de Agregar/Editar Empleado completamente visible y desplazable, modales adaptados a pantalla, nombre oficial «Gestion de Empleados» y Google Maps GPS."
 }

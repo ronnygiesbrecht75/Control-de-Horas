@@ -108,6 +108,10 @@ export interface Employee {
   licenseActive?: boolean;  // Si la licencia está habilitada
   deviceLinked?: boolean;   // Si ya fue activada en un dispositivo móvil
   deviceLinkedAt?: string;  // Fecha y hora en que se vinculó el dispositivo
+  // RECONOCIMIENTO FACIAL (KIOSCO FIJO DE EMPRESA)
+  faceDescriptors?: number[][]; // Vectores faciales 128D para identificación automática
+  facePhoto?: string;           // Foto de referencia del rostro registrado (Base64)
+  faceRegisteredAt?: string;    // Fecha ISO de registro del rostro
 }
 
 export interface VacationEntry {
@@ -147,7 +151,7 @@ export interface MonthlySettlementAdjustment {
   paidAt?: string; // ISO timestamp
 }
 
-export type ActiveTab = 'daily' | 'monthly' | 'settlement' | 'map' | 'employees' | 'ex-employees' | 'mobile-portal';
+export type ActiveTab = 'daily' | 'monthly' | 'settlement' | 'map' | 'employees' | 'ex-employees' | 'mobile-portal' | 'face-kiosk';
 
 export interface CurrencyConfig {
   symbol: string;

@@ -24,7 +24,8 @@ import {
   Smartphone,
   KeyRound,
   QrCode,
-  Umbrella
+  Umbrella,
+  ScanFace
 } from 'lucide-react';
 import { 
   formatCurrencyWithSymbol, 
@@ -34,6 +35,8 @@ import {
   getEmployeeRateForDate
 } from '../utils/timeUtils';
 import { EmployeeLicenseModal } from './EmployeeLicenseModal';
+import { FaceEnrollModal } from './FaceEnrollModal';
+import { KioskSetupModal } from './KioskSetupModal';
 import { generateLicenseKey } from '../data/mockData';
 
 interface EmployeeManagementViewProps {
@@ -46,6 +49,7 @@ interface EmployeeManagementViewProps {
   onDeleteEmployee: (id: string) => void;
   onGoToExEmployees?: () => void;
   onOpenMobilePortal?: (licenseKey: string) => void;
+  onOpenFaceKiosk?: () => void;
 }
 
 const COLORS = [
@@ -92,15 +96,18 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
   onUpdateEmployee,
   onDeleteEmployee,
   onGoToExEmployees,
-  onOpenMobilePortal
+  onOpenMobilePortal,
+  onOpenFaceKiosk
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingEmp, setEditingEmp] = useState<Employee | null>(null);
   const [filterFrequency, setFilterFrequency] = useState<'all' | 'quincenal' | 'mensual'>('all');
   const [toastMessage, setToastMessage] = useState<string>('');
 
-  // License modal state
+  // License & Face Kiosk modal state
   const [selectedLicenseEmp, setSelectedLicenseEmp] = useState<Employee | null>(null);
+  const [enrollingFaceEmp, setEnrollingFaceEmp] = useState<Employee | null>(null);
+  const [showKioskSetupModal, setShowKioskSetupModal] = useState(false);
 
   // Vacations management modal state
   const [showVacationsModal, setShowVacationsModal] = useState(false);
@@ -562,6 +569,17 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
             )}
           </button>
 
+          {/* Botón Kiosco Facial Fijo (Celular de Empresa) */}
+          <button
+            type="button"
+            onClick={() => setShowKioskSetupModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-xs font-bold rounded-xl transition-colors shrink-0 cursor-pointer border border-emerald-200"
+            title="Configurar y abrir el Kiosco Facial para celular fijo de empresa"
+          >
+            <ScanFace className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Kiosco Facial</span>
+          </button>
+
           {/* Jump to Ex Empleados */}
           {onGoToExEmployees && (
             <button
@@ -785,6 +803,47 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
                           <span>Probar</span>
                         </button>
                       </div>
+                    </div>
+
+                    {/* Registro Facial para Kiosco Fijo */}
+                    <div className="p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {emp.facePhoto ? (
+                          <img
+                            src={emp.facePhoto}
+                            alt={emp.name}
+                            className="w-8 h-8 rounded-lg object-cover border border-emerald-300 shrink-0"
+                          />
+                        ) : (
+                          <ScanFace className="w-4 h-4 text-emerald-700 shrink-0" />
+                        )}
+                        <div className="min-w-0">
+                          <span className="text-[10px] text-slate-500 block leading-none font-semibold">
+                            Kiosco Facial:
+                          </span>
+                          <span className="font-bold text-emerald-900 text-xs truncate block">
+                            {emp.faceDescriptors && emp.faceDescriptors.length > 0
+                              ? `Rostro listo (${emp.faceDescriptors.length})`
+                              : 'Sin rostro registrado'}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEnrollingFaceEmp(emp)}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer shrink-0 ${
+                          emp.faceDescriptors && emp.faceDescriptors.length > 0
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : 'bg-slate-900 hover:bg-slate-800 text-white'
+                        }`}
+                      >
+                        <ScanFace className="w-3.5 h-3.5" />
+                        <span>
+                          {emp.faceDescriptors && emp.faceDescriptors.length > 0
+                            ? 'Actualizar'
+                            : 'Registrar Rostro'}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1540,6 +1599,36 @@ export const EmployeeManagementView: React.FC<EmployeeManagementViewProps> = ({
             setSelectedLicenseEmp(null);
             if (onOpenMobilePortal) {
               onOpenMobilePortal(key);
+            }
+          }}
+        />
+      )}
+
+      {/* MODAL DE REGISTRO FACIAL PARA KIOSCO */}
+      {enrollingFaceEmp && (
+        <FaceEnrollModal
+          employee={enrollingFaceEmp}
+          onSaveEmployee={(updated) => {
+            onUpdateEmployee(updated);
+            showToast(
+              updated.faceDescriptors && updated.faceDescriptors.length > 0
+                ? `Rostro facial de ${updated.name} guardado.`
+                : `Registro facial de ${updated.name} borrado.`
+            );
+          }}
+          onClose={() => setEnrollingFaceEmp(null)}
+        />
+      )}
+
+      {/* MODAL CONFIGURAR Y ABRIR KIOSCO FACIAL FIJO */}
+      {showKioskSetupModal && (
+        <KioskSetupModal
+          employees={employees}
+          onClose={() => setShowKioskSetupModal(false)}
+          onOpenKioskNow={() => {
+            setShowKioskSetupModal(false);
+            if (onOpenFaceKiosk) {
+              onOpenFaceKiosk();
             }
           }}
         />

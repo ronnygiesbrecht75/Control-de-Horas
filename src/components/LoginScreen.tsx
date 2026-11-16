@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
-import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn, UserPlus, Smartphone } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ShieldCheck, LogIn, UserPlus, Smartphone, ScanFace } from 'lucide-react';
 
 interface LoginScreenProps {
   onLoginSuccess: (username: string) => void;
   onGoToEmployeePortal?: () => void;
+  onGoToFaceKiosk?: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onGoToEmployeePortal }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({
+  onLoginSuccess,
+  onGoToEmployeePortal,
+  onGoToFaceKiosk
+}) => {
   const [isRegistering, setIsRegistering] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -204,6 +209,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onGoTo
               <Smartphone className="w-4 h-4 text-blue-400" />
               <span>📱 ¿Eres Empleado? Marcar Horario con Clave de Licencia</span>
             </button>
+
+            {onGoToFaceKiosk && (
+              <button
+                type="button"
+                onClick={onGoToFaceKiosk}
+                className="w-full py-3 bg-emerald-950 hover:bg-emerald-900 text-emerald-300 hover:text-emerald-200 font-bold text-xs rounded-xl border border-emerald-800 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+              >
+                <ScanFace className="w-4 h-4 text-emerald-400" />
+                <span>Abrir Kiosco Facial Fijo (Celular de Empresa)</span>
+              </button>
+            )}
 
             <div className="text-center">
               <button

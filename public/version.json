@@ -1,5 +1,5 @@
 {
-  "version": "1.16",
-  "buildDate": "2026-11-16T18:57:00Z",
-  "description": "Versión 1.16: Ventana de Agregar/Editar Empleado completamente visible y desplazable, modales adaptados a pantalla, nombre oficial «Gestion de Empleados» y Google Maps GPS."
+  "version": "1.17",
+  "buildDate": "2026-11-16T19:56:00Z",
+  "description": "Versión 1.17: Nueva app independiente Kiosco Facial Fijo para celular/tablet de empresa con reconocimiento facial automático, registro de rostros, botón inferior Salida Intermedia y protección anti-doble marcación de 30s."
 }

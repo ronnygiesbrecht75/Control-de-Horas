@@ -151,6 +151,16 @@ export function getTodayDateStr(): string {
 }
 
 /**
+ * Get current local time in HH:MM (24h) format
+ */
+export function getCurrentTimeStr(): string {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+/**
  * Get current month in YYYY-MM format
  */
 export function getCurrentMonthStr(): string {

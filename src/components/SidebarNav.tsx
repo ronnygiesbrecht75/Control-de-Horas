@@ -9,7 +9,8 @@ import {
   UserX,
   ChevronRight,
   Layers,
-  Smartphone
+  Smartphone,
+  ScanFace
 } from 'lucide-react';
 
 interface SidebarNavProps {
@@ -67,6 +68,12 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
       label: 'Marcador Móvil',
       icon: <Smartphone className="w-5 h-5 shrink-0" />,
       badge: 'App'
+    },
+    {
+      id: 'face-kiosk',
+      label: 'Kiosco Facial',
+      icon: <ScanFace className="w-5 h-5 shrink-0" />,
+      badge: 'Fijo'
     }
   ];
 

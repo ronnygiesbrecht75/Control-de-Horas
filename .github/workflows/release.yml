@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Install Electron packager tools for Windows build
+        run: npm install --no-save electron@^33.2.1 electron-builder@^25.1.8
+
       - name: Ensure SemVer in package.json for Electron Builder
         shell: bash
         run: |

@@ -44,6 +44,7 @@ import { SidebarNav } from './components/SidebarNav';
 import { LoginScreen } from './components/LoginScreen';
 import { AutoUpdater } from './components/AutoUpdater';
 import { EmployeeMobilePortal } from './components/EmployeeMobilePortal';
+import { FaceKioskApp } from './components/FaceKioskApp';
 import { 
   syncEmployeesToCloud, 
   syncRecordsToCloud, 
@@ -141,9 +142,27 @@ export default function App() {
                   hasChanges = true;
                 } else {
                   const ex = map.get(ce.id);
-                  if (ex && ce.deviceLinked && !ex.deviceLinked) {
-                    map.set(ce.id, { ...ex, deviceLinked: true, deviceLinkedAt: ce.deviceLinkedAt });
-                    hasChanges = true;
+                  if (ex) {
+                    const needsDeviceLink = ce.deviceLinked && !ex.deviceLinked;
+                    const cloudFaces = ce.faceDescriptors?.length || 0;
+                    const localFaces = ex.faceDescriptors?.length || 0;
+                    const needsFaceUpdate =
+                      cloudFaces > localFaces ||
+                      (ce.faceRegisteredAt && ce.faceRegisteredAt !== ex.faceRegisteredAt && cloudFaces > 0);
+                    if (needsDeviceLink || needsFaceUpdate) {
+                      map.set(ce.id, {
+                        ...ex,
+                        ...(needsDeviceLink ? { deviceLinked: true, deviceLinkedAt: ce.deviceLinkedAt } : {}),
+                        ...(needsFaceUpdate
+                          ? {
+                              faceDescriptors: ce.faceDescriptors,
+                              facePhoto: ce.facePhoto,
+                              faceRegisteredAt: ce.faceRegisteredAt
+                            }
+                          : {})
+                      });
+                      hasChanges = true;
+                    }
                   }
                 }
               });
@@ -442,10 +461,31 @@ export default function App() {
 
   const [mobilePortalLicense, setMobilePortalLicense] = useState<string>('');
 
+  // Decide if the app should open in Fixed Company Face Kiosk mode
+  const [isFaceKioskActive, setIsFaceKioskActive] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const urlParams = new URLSearchParams(window.location.search);
+    const isExplicitKiosk =
+      urlParams.get('portal') === 'kiosco' ||
+      window.location.hash.includes('kiosco');
+    if (isExplicitKiosk) {
+      localStorage.setItem('control_horas_kiosk_mode', 'true');
+      return true;
+    }
+    const hasAdminSession = Boolean(localStorage.getItem('current_user'));
+    if (!hasAdminSession && localStorage.getItem('control_horas_kiosk_mode') === 'true') {
+      return true;
+    }
+    return false;
+  });
+
   // Decide if the app should open in Employee Mobile Portal mode
   const [isEmployeePortalActive, setIsEmployeePortalActive] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('portal') === 'kiosco' || window.location.hash.includes('kiosco')) {
+      return false;
+    }
     const hasDeviceLicense = Boolean(localStorage.getItem('control_horas_device_license'));
     const isExplicitPortal = (
       urlParams.get('portal') === 'empleado' ||
@@ -460,7 +500,7 @@ export default function App() {
     // 2. If URL indicates employee portal
     if (isExplicitPortal) return true;
     // 3. On mobile devices without an active admin session, default directly to employee portal
-    if (isMobileDevice && !hasAdminSession) return true;
+    if (isMobileDevice && !hasAdminSession && localStorage.getItem('control_horas_kiosk_mode') !== 'true') return true;
     return false;
   });
 
@@ -548,6 +588,30 @@ export default function App() {
     </div>
   ) : null;
 
+  // Dedicated Fixed Company Facial Recognition Kiosk App
+  if (isFaceKioskActive || activeTab === 'face-kiosk') {
+    return (
+      <>
+        {quotaBanner}
+        <FaceKioskApp
+          employees={employees}
+          records={records}
+          onUpdateEmployee={handleUpdateEmployee}
+          onUpdateRecord={handleUpdateRecord}
+          isAdminLoggedIn={Boolean(currentUser)}
+          onExitToAdmin={() => {
+            localStorage.removeItem('control_horas_kiosk_mode');
+            setIsFaceKioskActive(false);
+            setActiveTab('daily');
+            if (window.location.hash.includes('kiosco')) {
+              window.location.hash = '';
+            }
+          }}
+        />
+      </>
+    );
+  }
+
   // Direct Mobile Portal Access for Employees (does not require admin user/password)
   if (isEmployeePortalActive || activeTab === 'mobile-portal') {
     return (
@@ -585,6 +649,10 @@ export default function App() {
         <LoginScreen 
           onLoginSuccess={(user) => setCurrentUser(user)} 
           onGoToEmployeePortal={() => setIsEmployeePortalActive(true)}
+          onGoToFaceKiosk={() => {
+            localStorage.setItem('control_horas_kiosk_mode', 'true');
+            setIsFaceKioskActive(true);
+          }}
         />
       </>
     );
@@ -682,6 +750,10 @@ export default function App() {
                   setMobilePortalLicense(key);
                   setIsEmployeePortalActive(true);
                   setActiveTab('mobile-portal');
+                }}
+                onOpenFaceKiosk={() => {
+                  setIsFaceKioskActive(true);
+                  setActiveTab('face-kiosk');
                 }}
               />
             )}

@@ -9,7 +9,7 @@ function createWindow() {
     height: 850,
     minWidth: 960,
     minHeight: 640,
-    title: 'Control de Horas',
+    title: 'Gestion de Empleados',
     autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,

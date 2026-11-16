@@ -82,7 +82,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onGoTo
             <ShieldCheck className="w-9 h-9 text-white" />
           </div>
           <h1 className="text-2xl font-black tracking-tight">
-            Control de Planillas
+            Gestion de Empleados
           </h1>
           <p className="text-orange-100 text-xs sm:text-sm mt-1">
             Gestión de Horas y Liquidaciones - Paraguay (₲)

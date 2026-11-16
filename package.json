@@ -1,10 +1,10 @@
 {
   "name": "control-de-horas",
-  "productName": "Control de Horas",
+  "productName": "Gestion de Empleados",
   "description": "Sistema de Control de Horas y Liquidacion de Sueldos",
   "author": "Ronny Giesbrecht",
   "private": true,
-  "version": "1.14.0",
+  "version": "1.15.0",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "com.controldehoras.app",
-    "productName": "Control de Horas",
+    "productName": "Gestion de Empleados",
     "directories": {
       "output": "release"
     },
@@ -48,7 +48,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Control de Horas"
+      "shortcutName": "Gestion de Empleados"
     }
   },
   "dependencies": {

@@ -145,7 +145,7 @@ export const Header: React.FC<HeaderProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-bold text-slate-100 tracking-tight leading-none">
-                    Control de Horas
+                    Gestion de Empleados
                   </h1>
                   <span className="text-[10px] font-black bg-slate-800 text-orange-400 border border-slate-700 px-1.5 py-0.5 rounded-md leading-none">
                     v{APP_VERSION}
@@ -472,7 +472,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <HelpCircle className="w-5 h-5 text-blue-600" />
-              <span>¿Cómo funciona el Control de Horas?</span>
+              <span>¿Cómo funciona Gestion de Empleados?</span>
             </h3>
 
             <div className="mt-4 space-y-4 text-sm text-slate-600">

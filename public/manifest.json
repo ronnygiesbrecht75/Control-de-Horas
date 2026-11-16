@@ -1,6 +1,6 @@
 {
-  "name": "Control de Horas y Pago Mensual",
-  "short_name": "Control Horas",
+  "name": "Gestion de Empleados",
+  "short_name": "Gestion de Empleados",
   "description": "Aplicación para registrar dos entradas y salidas diarias de empleados, sumar horas automáticamente y calcular el pago a fin de mes.",
   "start_url": "/",
   "display": "standalone",

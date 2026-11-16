@@ -659,7 +659,7 @@ export const EmployeeMobilePortal: React.FC<EmployeeMobilePortalProps> = ({
               <Smartphone className="w-5 h-5" />
             </div>
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Control de Horas</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Gestion de Empleados</span>
               <h1 className="text-sm font-extrabold text-white">Portal del Empleado</h1>
             </div>
           </div>
@@ -780,7 +780,7 @@ export const EmployeeMobilePortal: React.FC<EmployeeMobilePortalProps> = ({
         </div>
 
         <div className="text-center text-xs text-slate-600 py-2">
-          Control de Horas · Foto Facial y Ubicación GPS
+          Gestion de Empleados · Foto Facial y Ubicación GPS
         </div>
       </div>
     );

@@ -1,5 +1,5 @@
 {
-  "version": "1.14",
-  "buildDate": "2026-11-16T18:20:00Z",
-  "description": "Versión 1.14: Verificación en vivo de URL pública para QR móvil, sincronización con URL personalizada, ventana limpia en escritorio y Google Maps GPS."
+  "version": "1.15",
+  "buildDate": "2026-11-16T18:45:00Z",
+  "description": "Versión 1.15: Nuevo nombre oficial «Gestion de Empleados» en escritorio, web y móvil PWA, verificación en vivo de URL para QR y Google Maps GPS."
 }

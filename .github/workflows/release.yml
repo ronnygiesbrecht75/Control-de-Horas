@@ -27,13 +27,7 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Install Electron packager tools for Windows build
-        run: npm install --no-save electron@^33.2.1 electron-builder@^25.1.8
-
-      - name: Ensure SemVer in package.json for Electron Builder
+      - name: Prepare package.json for Electron Windows Build
         shell: bash
         run: |
           node -e "
@@ -41,10 +35,16 @@ jobs:
             const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
             if (/^\d+\.\d+$/.test(pkg.version)) {
               pkg.version = pkg.version + '.0';
-              fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
-              console.log('SemVer normalized for electron-builder:', pkg.version);
             }
+            pkg.devDependencies = pkg.devDependencies || {};
+            pkg.devDependencies['electron'] = '^33.2.1';
+            pkg.devDependencies['electron-builder'] = '^25.1.8';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+            console.log('Prepared package.json for Electron build:', pkg.version);
           "
+
+      - name: Install dependencies
+        run: npm install
 
       - name: Build Web & Desktop .EXE
         run: npm run build:electron

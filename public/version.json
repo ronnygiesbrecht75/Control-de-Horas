@@ -1,5 +1,5 @@
 {
-  "version": "1.12",
-  "buildDate": "2026-11-16T17:12:00Z",
-  "description": "Versión 1.12: Nueva App Móvil de Empleados (Inicio, Horario Habitual, Planilla Mensual, Pagos y Vacaciones) e integración total con Google Maps GPS en marcaciones."
+  "version": "1.13",
+  "buildDate": "2026-11-16T17:38:00Z",
+  "description": "Versión 1.13: Ventana limpia en escritorio (sin barra de menú Archivo/Edición/Ver), nueva App Móvil de Empleados y Google Maps GPS en marcaciones."
 }

@@ -10,7 +10,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     title: 'Control de Horas',
-    autoHideMenuBar: false,
+    autoHideMenuBar: true,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -20,57 +20,12 @@ function createWindow() {
     }
   });
 
+  mainWindow.setMenuBarVisibility(false);
+  Menu.setApplicationMenu(null);
+
   // Load the built app index.html
   const indexPath = path.join(__dirname, '../dist/index.html');
   mainWindow.loadFile(indexPath);
-
-  // Set standard app menu
-  const template = [
-    {
-      label: 'Archivo',
-      submenu: [
-        {
-          label: 'Imprimir',
-          accelerator: 'CmdOrCtrl+P',
-          click: () => {
-            mainWindow.webContents.print();
-          }
-        },
-        { type: 'separator' },
-        { label: 'Salir', role: 'quit' }
-      ]
-    },
-    {
-      label: 'Edición',
-      submenu: [
-        { label: 'Deshacer', role: 'undo' },
-        { label: 'Rehacer', role: 'redo' },
-        { type: 'separator' },
-        { label: 'Cortar', role: 'cut' },
-        { label: 'Copiar', role: 'copy' },
-        { label: 'Pegar', role: 'paste' },
-        { label: 'Seleccionar todo', role: 'selectAll' }
-      ]
-    },
-    {
-      label: 'Ver',
-      submenu: [
-        { label: 'Recargar', role: 'reload' },
-        { label: 'Forzar recarga', role: 'forceReload' },
-        { type: 'separator' },
-        { label: 'Restablecer zoom', role: 'resetZoom' },
-        { label: 'Aumentar zoom', role: 'zoomIn' },
-        { label: 'Reducir zoom', role: 'zoomOut' },
-        { type: 'separator' },
-        { label: 'Pantalla completa', role: 'togglefullscreen' },
-        { type: 'separator' },
-        { label: 'Herramientas de Desarrollador', role: 'toggleDevTools' }
-      ]
-    }
-  ];
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
 
   mainWindow.on('closed', () => {
     mainWindow = null;

@@ -51,11 +51,39 @@ export const EmployeeLicenseModal: React.FC<EmployeeLicenseModalProps> = ({
     return localStorage.getItem('control_horas_custom_web_url') || (isElectronOrFile ? CLOUD_APP_URL : window.location.origin);
   });
   const [showUrlConfig, setShowUrlConfig] = useState(false);
+  const [urlStatus, setUrlStatus] = useState<'checking' | 'ok' | 'error'>('checking');
 
   // Generate mobile portal direct link with embedded employee activation data
   const safeBase = (webBaseUrl.trim() || CLOUD_APP_URL).replace(/\/+$/, '');
   const employeeParams = `portal=empleado&licencia=${encodeURIComponent(currentKey)}&emp_id=${encodeURIComponent(employee.id)}&emp_name=${encodeURIComponent(employee.name)}&emp_role=${encodeURIComponent(employee.role || 'Operario')}`;
   const portalUrl = `${safeBase}/?${employeeParams}#portal-empleado`;
+
+  // Verify whether the configured mobile URL is live (not 404)
+  const checkMobileUrlReachability = async (baseToCheck: string) => {
+    setUrlStatus('checking');
+    try {
+      const res = await fetch(`${baseToCheck}/api/sync/state?t=${Date.now()}`, {
+        method: 'GET',
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        setUrlStatus('ok');
+      } else {
+        setUrlStatus('error');
+        setShowUrlConfig(true);
+      }
+    } catch {
+      setUrlStatus('error');
+      setShowUrlConfig(true);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      checkMobileUrlReachability(safeBase);
+    }, 450);
+    return () => clearTimeout(timer);
+  }, [safeBase]);
 
   // Generate QR code
   useEffect(() => {
@@ -232,6 +260,26 @@ export const EmployeeLicenseModal: React.FC<EmployeeLicenseModalProps> = ({
             </div>
           </div>
 
+          {/* Live URL Reachability Warning */}
+          {urlStatus === 'error' && (
+            <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl text-xs text-amber-950 space-y-1.5">
+              <div className="flex items-center gap-2 font-bold text-amber-900">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>La dirección web pública del QR todavía no responde (Error 404)</span>
+              </div>
+              <p className="text-[11px] text-amber-900 leading-relaxed">
+                La URL actual (<span className="font-mono font-bold break-all">{safeBase}</span>) aún no está publicada en línea. Para que funcione en los celulares sin dar error 404, publica la aplicación (botón <strong>Deploy / Compartir</strong> en AI Studio) y pega abajo el enlace público resultante.
+              </p>
+            </div>
+          )}
+
+          {urlStatus === 'ok' && (
+            <div className="px-3.5 py-2 bg-emerald-50 border border-emerald-200 rounded-xl text-[11px] font-bold text-emerald-800 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Servidor web en línea y verificado para escanear desde el celular.</span>
+            </div>
+          )}
+
           {/* QR Code & Share link */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
             {/* QR */}
@@ -302,9 +350,9 @@ export const EmployeeLicenseModal: React.FC<EmployeeLicenseModalProps> = ({
                   {showUrlConfig ? 'Ocultar dirección web' : '⚙️ Configurar dirección web de la app móvil'}
                 </button>
                 {showUrlConfig && (
-                  <div className="mt-1.5 p-2.5 bg-white border border-slate-200 rounded-xl space-y-1.5 text-left">
+                  <div className="mt-1.5 p-2.5 bg-white border border-slate-200 rounded-xl space-y-2 text-left">
                     <label className="text-[10px] font-bold text-slate-600 uppercase block">
-                      URL Web para Teléfonos Móviles:
+                      URL Web Pública para Teléfonos Móviles:
                     </label>
                     <input
                       type="text"
@@ -313,9 +361,29 @@ export const EmployeeLicenseModal: React.FC<EmployeeLicenseModalProps> = ({
                         setWebBaseUrl(e.target.value);
                         localStorage.setItem('control_horas_custom_web_url', e.target.value);
                       }}
-                      placeholder="https://..."
+                      placeholder="https://tu-app-publicada.run.app"
                       className="w-full text-xs font-mono px-2 py-1.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => checkMobileUrlReachability(safeBase)}
+                        className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${urlStatus === 'checking' ? 'animate-spin' : ''}`} />
+                        <span>Probar conexión</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          localStorage.removeItem('control_horas_custom_web_url');
+                          setWebBaseUrl(isElectronOrFile ? CLOUD_APP_URL : window.location.origin);
+                        }}
+                        className="text-[10px] text-slate-500 hover:text-slate-700 underline cursor-pointer"
+                      >
+                        Restablecer
+                      </button>
+                    </div>
                     <p className="text-[9px] text-slate-400">
                       Esta es la dirección pública que cargará el celular al escanear el QR o abrir el enlace de WhatsApp.
                     </p>

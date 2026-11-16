@@ -8,21 +8,36 @@ export const CLOUD_SERVER_URL = 'https://ais-pre-bzq2vla6xllilcoamfkh66-35221501
  * In Electron or file:// environments, we directly hit the public cloud server URL.
  */
 export function getApiBaseUrls(): string[] {
+  const customUrlRaw =
+    typeof window !== 'undefined' ? localStorage.getItem('control_horas_custom_web_url') : '';
+  const customUrl = (customUrlRaw || '').trim().replace(/\/+$/, '');
+  const validCustomUrl = customUrl && /^https?:\/\//i.test(customUrl) ? customUrl : '';
+
   const isElectronOrFile =
     typeof window !== 'undefined' &&
     (window.location.protocol === 'file:' || !window.location.origin || window.location.origin === 'null' || window.location.origin.startsWith('file:'));
 
+  const urls: string[] = [];
+
   if (isElectronOrFile) {
-    return [CLOUD_SERVER_URL];
+    if (validCustomUrl) urls.push(validCustomUrl);
+    urls.push(CLOUD_SERVER_URL);
+    return Array.from(new Set(urls));
   }
 
   const currentOrigin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : '';
   if (currentOrigin && !currentOrigin.includes('localhost') && !currentOrigin.includes('127.0.0.1')) {
-    return [currentOrigin, CLOUD_SERVER_URL];
+    urls.push(currentOrigin);
+    if (validCustomUrl) urls.push(validCustomUrl);
+    urls.push(CLOUD_SERVER_URL);
+    return Array.from(new Set(urls));
   }
 
-  // Local development: relative first, then cloud server
-  return ['', CLOUD_SERVER_URL];
+  // Local development: relative first, then custom URL (if set), then cloud server
+  urls.push('');
+  if (validCustomUrl) urls.push(validCustomUrl);
+  urls.push(CLOUD_SERVER_URL);
+  return Array.from(new Set(urls));
 }
 
 /**

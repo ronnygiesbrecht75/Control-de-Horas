@@ -1,5 +1,5 @@
 {
-  "version": "1.13",
-  "buildDate": "2026-11-16T17:38:00Z",
-  "description": "Versión 1.13: Ventana limpia en escritorio (sin barra de menú Archivo/Edición/Ver), nueva App Móvil de Empleados y Google Maps GPS en marcaciones."
+  "version": "1.14",
+  "buildDate": "2026-11-16T18:20:00Z",
+  "description": "Versión 1.14: Verificación en vivo de URL pública para QR móvil, sincronización con URL personalizada, ventana limpia en escritorio y Google Maps GPS."
 }

@@ -1,5 +1,5 @@
 // Service Worker for Offline Caching and Auto-Update
-const CACHE_NAME = 'control-horas-cache-v1.18.0';
+const CACHE_NAME = 'control-horas-cache-v1.19.0';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',

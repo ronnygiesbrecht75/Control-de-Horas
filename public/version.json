@@ -1,5 +1,5 @@
 {
-  "version": "1.18",
-  "buildDate": "2026-11-16T20:23:00Z",
-  "description": "Versión 1.18: Optimización de tamaño para publicación en Cloud Run (<200 MB), Kiosco Facial Fijo independiente con Salida Intermedia y protección anti-doble marcación de 30s."
+  "version": "1.19",
+  "buildDate": "2026-11-17T13:38:00Z",
+  "description": "Versión 1.19: Opción para eliminar permanentemente ex empleados, bloqueo de pantalla en Kiosco Facial Fijo (sin botón de volver al Marcador Móvil) y corrección del compilador Windows."
 }

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Employee, 
   DailyTimeRecord, 
@@ -69,6 +69,7 @@ export default function App() {
   const [adjustments, setAdjustments] = useState<MonthlySettlementAdjustment[]>(() => loadAdjustmentsFromStorage());
   const [vacations, setVacations] = useState<VacationEntry[]>(() => loadVacationsFromStorage());
   const [currency, setCurrency] = useState<CurrencyConfig>(() => loadCurrencyFromStorage());
+  const deletedEmployeeIdsRef = useRef<Set<string>>(new Set());
 
   // Listen to global Google Maps quota-exceeded event
   useEffect(() => {
@@ -133,10 +134,13 @@ export default function App() {
           // Merge employees if cloud has extra ones or newly linked devices
           if (cloudData.employees && cloudData.employees.length > 0) {
             setEmployees(prev => {
-              if (prev.length === 0) return cloudData.employees;
+              const filteredCloud = cloudData.employees.filter(
+                ce => !deletedEmployeeIdsRef.current.has(ce.id)
+              );
+              if (prev.length === 0) return filteredCloud;
               const map = new Map<string, Employee>(prev.map(e => [e.id, e]));
               let hasChanges = false;
-              cloudData.employees.forEach(ce => {
+              filteredCloud.forEach(ce => {
                 if (!map.has(ce.id)) {
                   map.set(ce.id, ce);
                   hasChanges = true;
@@ -317,7 +321,12 @@ export default function App() {
   };
 
   const handleDeleteEmployee = (id: string) => {
-    setEmployees(prev => prev.filter(e => e.id !== id));
+    deletedEmployeeIdsRef.current.add(id);
+    setEmployees(prev => {
+      const next = prev.filter(e => e.id !== id);
+      syncEmployeesToCloud(next).catch(err => console.debug('Sync delete employee error:', err));
+      return next;
+    });
     if (selectedEmployeeId === id) {
       const remaining = employees.filter(e => e.id !== id);
       setSelectedEmployeeId(remaining.length > 0 ? remaining[0].id : '');
@@ -590,6 +599,12 @@ export default function App() {
 
   // Dedicated Fixed Company Facial Recognition Kiosk App
   if (isFaceKioskActive || activeTab === 'face-kiosk') {
+    const isStandaloneKiosk =
+      !currentUser ||
+      localStorage.getItem('control_horas_kiosk_mode') === 'true' ||
+      window.location.search.includes('portal=kiosco') ||
+      window.location.hash.includes('kiosco');
+
     return (
       <>
         {quotaBanner}
@@ -599,14 +614,18 @@ export default function App() {
           onUpdateEmployee={handleUpdateEmployee}
           onUpdateRecord={handleUpdateRecord}
           isAdminLoggedIn={Boolean(currentUser)}
-          onExitToAdmin={() => {
-            localStorage.removeItem('control_horas_kiosk_mode');
-            setIsFaceKioskActive(false);
-            setActiveTab('daily');
-            if (window.location.hash.includes('kiosco')) {
-              window.location.hash = '';
-            }
-          }}
+          onExitToAdmin={
+            isStandaloneKiosk
+              ? undefined
+              : () => {
+                  localStorage.removeItem('control_horas_kiosk_mode');
+                  setIsFaceKioskActive(false);
+                  setActiveTab('daily');
+                  if (window.location.hash.includes('kiosco')) {
+                    window.location.hash = '';
+                  }
+                }
+          }
         />
       </>
     );

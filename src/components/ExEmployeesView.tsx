@@ -98,6 +98,7 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
   // PDF print modal state
   const [showPDFModal, setShowPDFModal] = useState(false);
   const [toastMessage, setToastMessage] = useState<string>('');
+  const [deletingExEmp, setDeletingExEmp] = useState<Employee | null>(null);
 
   // Rate history modal state
   const [showRateHistoryModal, setShowRateHistoryModal] = useState<boolean>(false);
@@ -298,6 +299,19 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
       });
       showToast(`${emp.name} ha sido reactivado exitosamente.`);
     }
+  };
+
+  // Permanently delete ex-employee
+  const confirmDeleteExEmployee = () => {
+    if (!deletingExEmp) return;
+    const target = deletingExEmp;
+    onDeleteEmployee(target.id);
+    if (selectedExEmpId === target.id) {
+      const remaining = exEmployees.filter(e => e.id !== target.id);
+      setSelectedExEmpId(remaining[0]?.id || '');
+    }
+    setDeletingExEmp(null);
+    showToast(`Ex empleado ${target.name} eliminado permanentemente.`);
   };
 
   // Edit employee dates modal
@@ -683,6 +697,15 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Reactivar</span>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDeletingExEmp(emp)}
+                      title="Eliminar ex empleado permanentemente"
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
@@ -742,6 +765,15 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                     >
                       <RotateCcw className="w-3 h-3" />
                       <span>Reactivar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => currentExEmp && setDeletingExEmp(currentExEmp)}
+                      title="Eliminar ex empleado permanentemente"
+                      className="ml-1 inline-flex items-center gap-1 text-[11px] font-bold text-red-700 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-lg border border-red-200 cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Eliminar</span>
                     </button>
                   </div>
                 )}
@@ -808,6 +840,19 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                   <span className="hidden sm:inline">Generar PDF</span>
                   <span className="sm:hidden">PDF</span>
                 </button>
+
+                {/* Eliminar Ex Empleado (siempre visible también en móvil) */}
+                {currentExEmp && (
+                  <button
+                    type="button"
+                    onClick={() => setDeletingExEmp(currentExEmp)}
+                    title="Eliminar ex empleado permanentemente"
+                    className="sm:hidden flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Eliminar</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1715,6 +1760,45 @@ export const ExEmployeesView: React.FC<ExEmployeesViewProps> = ({
                 className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold rounded-xl transition-colors cursor-pointer"
               >
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación para Eliminar Ex Empleado */}
+      {deletingExEmp && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-150">
+            <div className="p-5 flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-slate-900">
+                  ¿Eliminar a {deletingExEmp.name}?
+                </h3>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Se eliminará permanentemente de la lista de <strong>Ex Empleados</strong> ({deletingExEmp.role || 'Operario'}). Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </div>
+
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeletingExEmp(null)}
+                className="min-h-[40px] px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteExEmployee}
+                className="min-h-[40px] px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Eliminar Permanentemente</span>
               </button>
             </div>
           </div>

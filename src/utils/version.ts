@@ -1,5 +1,5 @@
-export const APP_VERSION = '1.18';
-export const APP_BUILD_DATE = '2026-11-16';
+export const APP_VERSION = '1.19';
+export const APP_BUILD_DATE = '2026-11-17';
 export const GITHUB_REPO_URL = 'https://github.com/ronnygiesbrecht75/control-de-horas';
 export const GITHUB_RELEASES_URL = `${GITHUB_REPO_URL}/releases`;
 export const CLOUD_VERSION_URL = 'https://ais-pre-bzq2vla6xllilcoamfkh66-352215019352.us-east5.run.app/version.json';
